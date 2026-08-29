@@ -1,9 +1,9 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -21,13 +21,15 @@ type Host struct {
 
 	lastState HostState
 
-	defaultData    map[int][]byte
-	sequenceNumber uint16
-	counter        int
+	defaultData map[int][]byte
+	counter     int
 
-	statOK  int
-	statERR int
-	statIP  string
+	statOK             int
+	statERR            int
+	IP                 string
+	resultErr          error
+	resultLastLiveIP   string
+	resultLastPingTime time.Duration
 }
 
 type HostState struct {
@@ -107,64 +109,98 @@ func (c *Host) UpdateConfig() {
 	c.resetStat()
 }
 
+func (c *Host) checkIP() bool {
+	if len(c.IP) == 0 {
+		ips, err := net.LookupIP(c.configHost.Hostname)
+		if err != nil {
+			c.mtx.Lock()
+			c.IP = ""
+			c.mtx.Unlock()
+			c.resultErr = errors.New("cannot resolve hostname")
+			return false
+		}
+
+		// Find IP v4 address
+		var ip4 net.IP
+		for _, ip := range ips {
+			if ip.To4() != nil {
+				ip4 = ip
+				break
+			}
+		}
+		if ip4 == nil {
+			c.mtx.Lock()
+			c.IP = ""
+			c.mtx.Unlock()
+			c.resultErr = fmt.Errorf("no IPv4 address found for %s", c.configHost.Hostname)
+			return false
+		}
+		c.mtx.Lock()
+		c.IP = ip4.String()
+		c.mtx.Unlock()
+	}
+	return true
+}
+
+func (c *Host) updateState() {
+	c.mtx.Lock()
+	var state HostState
+	state.ConfigHost = c.configHost
+	state.Started = c.started
+	state.Stopping = c.stopping
+	state.LastError = c.resultErr
+	state.LastCheck = time.Now()
+	state.StatOK = c.statOK
+	state.StatERR = c.statERR
+	state.StatIP = c.resultLastLiveIP
+	state.PingTime = c.resultLastPingTime
+	c.mtx.Unlock()
+	c.SetState(state)
+}
+
 func (c *Host) thWork() {
 	c.mtx.Lock()
 	c.started = true
 	c.mtx.Unlock()
 	for {
+		time.Sleep(1000 * time.Millisecond)
+
 		c.mtx.Lock()
 		if !c.started || c.stopping {
 			c.mtx.Unlock()
 			break
 		}
 		c.mtx.Unlock()
-		time.Sleep(1000 * time.Millisecond)
-		result, peer, err := c.ping(c.configHost.Hostname, 64, 1000, false)
-		_ = peer
-		if err != nil {
-			c.statERR++
-			c.statIP = ""
+
+		if c.checkIP() {
+			result, peer, err := c.ping(c.IP, 64, 1000)
+			c.resultLastPingTime = time.Duration(result) * time.Millisecond
+
+			liveIP := ""
+
+			if err != nil {
+				c.statERR++
+				c.resultErr = err
+			} else {
+				c.statOK++
+				c.resultErr = nil
+				ipWithoutPort, _, _ := net.SplitHostPort(peer.String())
+				liveIP = ipWithoutPort
+			}
+			c.resultLastLiveIP = liveIP
 		} else {
-			c.statOK++
-			c.statIP = "123"
+			c.mtx.Lock()
+			c.statERR++
+			c.mtx.Unlock()
 		}
-		c.mtx.Lock()
-		var state HostState
-		state.ConfigHost = c.configHost
-		state.Started = c.started
-		state.Stopping = c.stopping
-		state.LastError = err
-		state.LastCheck = time.Now()
-		state.StatOK = c.statOK
-		state.StatERR = c.statERR
-		state.StatIP = c.statIP
-		fmt.Println("WORK", c.configHost.ID, "StatOK", c.statOK, "StatERR", c.statERR, "StatIP", c.statIP)
-		if err == nil {
-			state.PingTime = time.Duration(result) * time.Millisecond
-		}
-		c.mtx.Unlock()
-		c.SetState(state)
+
+		c.updateState()
 	}
 	c.mtx.Lock()
 	c.started = false
 	c.mtx.Unlock()
 }
 
-func (c *Host) ping(addr string, dataSize int, timeoutMs int, useUdpSocket bool) (result int, peer net.Addr, err error) {
-	var data []byte
-	data, _ = c.defaultData[dataSize]
-	if data == nil {
-		data = make([]byte, dataSize)
-	}
-
-	c.mtx.Lock()
-	seqIndex := c.sequenceNumber
-	srcIndex := uint16(os.Getpid() & 0xFFFF)
-	c.sequenceNumber++
-	if c.sequenceNumber > 65534 {
-		c.sequenceNumber = 1
-	}
-	c.mtx.Unlock()
-
-	return GetServer().PingHost(addr, data, timeoutMs, srcIndex, seqIndex, useUdpSocket)
+func (c *Host) ping(addr string, dataSize int, timeoutMs int) (result int, peer net.Addr, err error) {
+	return GetServer().PingHost(addr, dataSize, timeoutMs)
 }

@@ -1,9 +1,14 @@
 package system
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"runtime"
+	"sync"
 	"time"
 
 	"golang.org/x/net/icmp"
@@ -11,44 +16,88 @@ import (
 )
 
 type PingServer struct {
-	srv          *icmp.PacketConn
-	useUdpSocket bool
+	mtx             sync.Mutex
+	srv             *icmp.PacketConn
+	useUdpSocket    bool
+	source          uint16
+	nextSequenceNum uint16
 
-	activeRequests map[string]*PingRequest
+	activeRequestsByUniqueId map[string]*PingRequest // key = hex-encoded unique key
 }
 
 type PingRequest struct {
-	Addr         string
-	DataSize     int
-	TimeoutMs    int
-	UseUdpSocket bool
+	Source   uint16
+	Sequence uint16
+
+	Addr      string
+	DataSize  int
+	TimeoutMs int
+	SentTime  time.Time
+	RecvTime  time.Time
+
+	ResultPeer     net.Addr
+	ResultResponse *icmp.Message
+	ResultErr      error
 }
 
 var server *PingServer
 
 func init() {
-	server, _ = NewPingServer(false)
-	go server.thReceive()
+	useUdpSocket := false
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		weDontHaveRoot := os.Geteuid() != 0
+		if weDontHaveRoot {
+			useUdpSocket = true
+		}
+	}
+	server = NewPingServer(useUdpSocket)
+	server.Start()
 }
 
 func GetServer() *PingServer {
 	return server
 }
 
-func NewPingServer(useUdpSocket bool) (*PingServer, error) {
+func NewPingServer(useUdpSocket bool) *PingServer {
 	var c PingServer
-	var err error
-	c.activeRequests = make(map[string]*PingRequest)
+	c.activeRequestsByUniqueId = make(map[string]*PingRequest)
 	c.useUdpSocket = useUdpSocket
-	if useUdpSocket {
+
+	c.source = uint16(os.Getpid() & 0xFFFF)
+	c.nextSequenceNum = 1
+	return &c
+}
+
+func (c *PingServer) Mode() string {
+	if c.useUdpSocket {
+		return "udp"
+	}
+	return "icmp"
+}
+
+func (c *PingServer) getNextSequenceNum() uint16 {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	seq := c.nextSequenceNum
+	c.nextSequenceNum++
+	if c.nextSequenceNum == 0xFFFF {
+		c.nextSequenceNum = 1
+	}
+	return seq
+}
+
+func (c *PingServer) Start() {
+	var err error
+	if c.useUdpSocket {
 		c.srv, err = icmp.ListenPacket("udp4", "0.0.0.0")
 	} else {
 		c.srv, err = icmp.ListenPacket("ip4:icmp", "0.0.0.0")
 	}
 	if err != nil {
-		return nil, err
+		fmt.Println("Err", err)
+		return
 	}
-	return &c, nil
+	go c.thReceive()
 }
 
 func (ps *PingServer) Close() error {
@@ -60,52 +109,70 @@ func (ps *PingServer) Close() error {
 
 func (c *PingServer) thReceive() {
 	var err error
+	rb := make([]byte, 1500)
+
 	for {
-		rb := make([]byte, 1500)
-
-		err = c.srv.SetDeadline(time.Now().Add(100 * time.Millisecond))
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-
 		var n int
 		var peer net.Addr
 		n, peer, err = c.srv.ReadFrom(rb)
-		_ = peer
 		if err != nil {
-			fmt.Println("Error:", err)
-			continue
+			break
 		}
 		var rm *icmp.Message
 		rm, err = icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), rb[:n])
 		if err != nil {
-			fmt.Println("Error:", err)
-			continue
-		}
-
-		if rm.Type == ipv4.ICMPTypeDestinationUnreachable {
-			err = errors.New("destination unreachable")
-			fmt.Println("Error:", err)
 			continue
 		}
 
 		if rm.Type != ipv4.ICMPTypeEchoReply {
-			err = errors.New("error")
-			fmt.Println("Error:", err)
 			continue
 		}
 
-		fmt.Println("Received ICMP Echo Reply from", peer)
-	}
+		var echo *icmp.Echo
+		echo, ok := rm.Body.(*icmp.Echo)
+		if !ok {
+			err = errors.New("error")
+			continue
+		}
 
+		if echo == nil {
+			err = errors.New("error")
+			continue
+		}
+
+		// get first 8 bytes of data as unique key
+		if len(echo.Data) < 8 {
+			continue
+		}
+		uniqueKey := echo.Data[0:8]
+		key := hex.EncodeToString(uniqueKey)
+
+		c.mtx.Lock()
+		req, ok := c.activeRequestsByUniqueId[key]
+		if ok {
+			req.ResultResponse = rm
+			req.RecvTime = time.Now()
+			req.ResultPeer = peer
+		}
+		c.mtx.Unlock()
+	}
 }
 
-func (c *PingServer) PingHost(addr string, dataFrame []byte, timeoutMs int, source uint16, sequenceNum uint16, useUdpSocket bool) (result int, peer net.Addr, err error) {
-	if len(dataFrame) < 1 || len(dataFrame) > 1400 {
+func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int) (result int, peer net.Addr, err error) {
+	if frameSize < 8 || frameSize > 1400 {
 		err = errors.New("wrong data frame length")
 		return
 	}
+
+	dataFrame := make([]byte, frameSize)
+
+	uniqueKey := make([]byte, 8)
+	_, err = rand.Read(uniqueKey)
+	if err != nil {
+		return
+	}
+
+	copy(dataFrame[0:8], uniqueKey)
 
 	if len(addr) < 1 {
 		err = errors.New("wrong address")
@@ -142,6 +209,9 @@ func (c *PingServer) PingHost(addr string, dataFrame []byte, timeoutMs int, sour
 		return
 	}
 
+	source := c.source
+	sequenceNum := c.getNextSequenceNum()
+
 	wm := icmp.Message{
 		Type: ipv4.ICMPTypeEcho, Code: 0,
 		Body: &icmp.Echo{
@@ -156,24 +226,61 @@ func (c *PingServer) PingHost(addr string, dataFrame []byte, timeoutMs int, sour
 		return
 	}
 	var destAddr net.Addr
-	if useUdpSocket {
+	if c.useUdpSocket {
 		destAddr = &net.UDPAddr{IP: ipAddr}
 	} else {
 		destAddr = &net.IPAddr{IP: ipAddr}
 	}
 
+	startTime := time.Now()
+
 	var req *PingRequest
 	req = &PingRequest{
-		Addr:         addr,
-		DataSize:     len(dataFrame),
-		TimeoutMs:    timeoutMs,
-		UseUdpSocket: useUdpSocket,
+		Source:    source,
+		Sequence:  sequenceNum,
+		Addr:      addr,
+		DataSize:  len(dataFrame),
+		TimeoutMs: timeoutMs,
+		SentTime:  startTime,
 	}
-	c.activeRequests[addr] = req
+	c.mtx.Lock()
+	uniqueKeyStr := hex.EncodeToString(uniqueKey)
+	c.activeRequestsByUniqueId[uniqueKeyStr] = req
+	c.mtx.Unlock()
+
+	defer func() {
+		c.mtx.Lock()
+		delete(c.activeRequestsByUniqueId, uniqueKeyStr)
+		c.mtx.Unlock()
+	}()
 
 	if _, err = c.srv.WriteTo(wb, destAddr); err != nil {
 		return
 	}
 
+	var response *icmp.Message
+
+	for {
+		c.mtx.Lock()
+		if req.ResultResponse != nil {
+			response = req.ResultResponse
+			c.mtx.Unlock()
+			break
+		}
+		c.mtx.Unlock()
+		if time.Since(startTime) > time.Duration(timeoutMs)*time.Millisecond {
+			err = errors.New("timeout")
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if response == nil {
+		err = errors.New("no response")
+		return
+	}
+
+	result = int(req.RecvTime.Sub(req.SentTime).Milliseconds())
+	peer = req.ResultPeer
 	return
 }

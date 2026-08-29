@@ -11,8 +11,8 @@ type CenterWidget struct {
 func NewCenterWidget() *CenterWidget {
 	var c CenterWidget
 	c.InitWidget()
-	c.SetXExpandable(true)
-	c.SetYExpandable(true)
+	//c.SetXExpandable(true)
+	//c.SetYExpandable(true)
 
 	//c.SetMode("common")
 
