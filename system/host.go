@@ -16,6 +16,8 @@ type Host struct {
 	started  bool
 	stopping bool
 
+	pingServer *PingServer
+
 	config     *config.Config
 	configHost config.ConfigHost
 
@@ -23,6 +25,8 @@ type Host struct {
 
 	defaultData map[int][]byte
 	counter     int
+
+	chanStop chan struct{}
 
 	statOK             int
 	statERR            int
@@ -44,9 +48,10 @@ type HostState struct {
 	StatIP     string
 }
 
-func NewHost(id string) *Host {
+func NewHost(id string, pingServer *PingServer) *Host {
 	var c Host
 	c.ID = id
+	c.pingServer = pingServer
 
 	c.defaultData = make(map[int][]byte)
 	for s := 0; s < 1500; s++ {
@@ -60,7 +65,7 @@ func NewHost(id string) *Host {
 	return &c
 }
 
-func (c *Host) Start() {
+func (c *Host) Start(chanStopped chan struct{}) {
 	c.mtx.Lock()
 	if c.started {
 		c.mtx.Unlock()
@@ -69,6 +74,7 @@ func (c *Host) Start() {
 	c.stopping = false
 	c.mtx.Unlock()
 	c.resetStat()
+	c.chanStop = chanStopped
 	go c.thWork()
 }
 
@@ -77,8 +83,14 @@ func (c *Host) Stop() {
 	c.stopping = true
 	c.mtx.Unlock()
 	for c.started {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+func (c *Host) IsRunning() bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	return c.started
 }
 
 func (c *Host) GetState() HostState {
@@ -163,7 +175,15 @@ func (c *Host) thWork() {
 	c.started = true
 	c.mtx.Unlock()
 	for {
-		time.Sleep(1000 * time.Millisecond)
+		// select with timeout
+		select {
+		case <-time.After(time.Duration(c.configHost.TimeoutMs) * time.Millisecond):
+		case <-c.chanStop:
+			c.mtx.Lock()
+			c.started = false
+			c.mtx.Unlock()
+			return
+		}
 
 		c.mtx.Lock()
 		if !c.started || c.stopping {
@@ -173,7 +193,7 @@ func (c *Host) thWork() {
 		c.mtx.Unlock()
 
 		if c.checkIP() {
-			result, peer, err := c.ping(c.IP, 64, 1000)
+			result, peer, err := c.pingServer.PingHost(c.IP, 64, 1000, c.chanStop)
 			c.resultLastPingTime = time.Duration(result) * time.Millisecond
 
 			liveIP := ""
@@ -199,8 +219,4 @@ func (c *Host) thWork() {
 	c.mtx.Lock()
 	c.started = false
 	c.mtx.Unlock()
-}
-
-func (c *Host) ping(addr string, dataSize int, timeoutMs int) (result int, peer net.Addr, err error) {
-	return GetServer().PingHost(addr, dataSize, timeoutMs)
 }

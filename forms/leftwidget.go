@@ -41,7 +41,7 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 
 	c.loadHosts()
 
-	c.AddTimer(100, c.timerUpdate)
+	c.AddTimer(200, c.timerUpdate)
 
 	return &c
 }

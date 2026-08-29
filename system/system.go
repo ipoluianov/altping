@@ -3,7 +3,9 @@ package system
 import "github.com/ipoluianov/altping/config"
 
 type System struct {
-	Hosts []*Host
+	pingServer  *PingServer
+	Hosts       []*Host
+	chanStopped chan struct{}
 }
 
 var systemInstance *System
@@ -14,6 +16,7 @@ func init() {
 
 func newSystem() *System {
 	var c System
+	c.pingServer = NewPingServer()
 	return &c
 }
 
@@ -23,16 +26,45 @@ func Get() *System {
 
 func (c *System) Start() {
 	c.UpdateConfig()
+	c.chanStopped = make(chan struct{})
+	c.pingServer.Start()
 	for _, host := range c.Hosts {
-		host.Start()
+		host.Start(c.chanStopped)
 	}
 }
 
 func (c *System) Stop() {
+	c.pingServer.Stop()
+	if c.chanStopped != nil {
+		close(c.chanStopped)
+		c.chanStopped = nil
+	}
+	// Signal all hosts to stop
 	for _, host := range c.Hosts {
-		host.Stop()
+		go host.Stop()
+	}
+	allStopped := false
+	for !allStopped {
+		allStopped = true
+		for _, host := range c.Hosts {
+			if host.IsRunning() {
+				allStopped = false
+				break
+			}
+		}
 	}
 	c.Hosts = nil
+}
+
+func (c *System) IsRunning() bool {
+	if c.chanStopped == nil {
+		return false
+	}
+	return true
+}
+
+func (c *System) PingServerMode() string {
+	return c.pingServer.Mode()
 }
 
 func (c *System) GetHostLastState(id string) HostState {
@@ -63,7 +95,7 @@ func (c *System) UpdateConfig() {
 			}
 		}
 		if host == nil {
-			host = NewHost(hostConfig.ID)
+			host = NewHost(hostConfig.ID, c.pingServer)
 			c.Hosts = append(c.Hosts, host)
 		}
 		host.UpdateConfig()

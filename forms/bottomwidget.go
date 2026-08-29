@@ -14,6 +14,7 @@ type BottomWidget struct {
 func NewBottomWidget() *BottomWidget {
 	var c BottomWidget
 	c.InitWidget()
+	c.SetPanelPadding(6)
 	c.lblStatus = ui.NewLabel("---")
 	c.AddWidgetOnGrid(c.lblStatus, 0, 0)
 	c.AddWidgetOnGrid(ui.NewHSpacer(), 0, 1)
@@ -24,7 +25,7 @@ func NewBottomWidget() *BottomWidget {
 }
 
 func (c *BottomWidget) timerUpdate() {
-	mode := system.GetServer().Mode()
+	mode := system.Get().PingServerMode()
 	if mode == "udp" {
 		mode = "UDP Mode"
 	}

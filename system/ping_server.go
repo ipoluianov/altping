@@ -18,9 +18,9 @@ import (
 type PingServer struct {
 	mtx             sync.Mutex
 	srv             *icmp.PacketConn
-	useUdpSocket    bool
 	source          uint16
 	nextSequenceNum uint16
+	mode            string
 
 	activeRequestsByUniqueId map[string]*PingRequest // key = hex-encoded unique key
 }
@@ -40,39 +40,19 @@ type PingRequest struct {
 	ResultErr      error
 }
 
-var server *PingServer
-
 func init() {
-	useUdpSocket := false
-	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
-		weDontHaveRoot := os.Geteuid() != 0
-		if weDontHaveRoot {
-			useUdpSocket = true
-		}
-	}
-	server = NewPingServer(useUdpSocket)
-	server.Start()
 }
 
-func GetServer() *PingServer {
-	return server
-}
-
-func NewPingServer(useUdpSocket bool) *PingServer {
+func NewPingServer() *PingServer {
 	var c PingServer
 	c.activeRequestsByUniqueId = make(map[string]*PingRequest)
-	c.useUdpSocket = useUdpSocket
-
 	c.source = uint16(os.Getpid() & 0xFFFF)
 	c.nextSequenceNum = 1
 	return &c
 }
 
 func (c *PingServer) Mode() string {
-	if c.useUdpSocket {
-		return "udp"
-	}
-	return "icmp"
+	return c.mode
 }
 
 func (c *PingServer) getNextSequenceNum() uint16 {
@@ -88,21 +68,35 @@ func (c *PingServer) getNextSequenceNum() uint16 {
 
 func (c *PingServer) Start() {
 	var err error
-	if c.useUdpSocket {
+
+	useUdpSocket := false
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		weDontHaveRoot := os.Geteuid() != 0
+		if weDontHaveRoot {
+			useUdpSocket = true
+		}
+	}
+
+	mode := ""
+	if useUdpSocket {
 		c.srv, err = icmp.ListenPacket("udp4", "0.0.0.0")
+		mode = "udp"
 	} else {
 		c.srv, err = icmp.ListenPacket("ip4:icmp", "0.0.0.0")
+		mode = "icmp"
 	}
 	if err != nil {
 		fmt.Println("Err", err)
+		c.mode = ""
 		return
 	}
+	c.mode = mode
 	go c.thReceive()
 }
 
-func (ps *PingServer) Close() error {
-	if ps.srv != nil {
-		return ps.srv.Close()
+func (c *PingServer) Stop() error {
+	if c.srv != nil {
+		return c.srv.Close()
 	}
 	return nil
 }
@@ -156,9 +150,11 @@ func (c *PingServer) thReceive() {
 		}
 		c.mtx.Unlock()
 	}
+
+	c.mode = ""
 }
 
-func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int) (result int, peer net.Addr, err error) {
+func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanStop chan struct{}) (result int, peer net.Addr, err error) {
 	if frameSize < 8 || frameSize > 1400 {
 		err = errors.New("wrong data frame length")
 		return
@@ -225,11 +221,17 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int) (result
 	if err != nil {
 		return
 	}
+
 	var destAddr net.Addr
-	if c.useUdpSocket {
+
+	switch c.mode {
+	case "udp":
 		destAddr = &net.UDPAddr{IP: ipAddr}
-	} else {
+	case "icmp":
 		destAddr = &net.IPAddr{IP: ipAddr}
+	default:
+		err = errors.New("ping server not started")
+		return
 	}
 
 	startTime := time.Now()
@@ -273,6 +275,13 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int) (result
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
+
+		select {
+		case <-chanStop:
+			err = errors.New("stopped")
+			return
+		default:
+		}
 	}
 
 	if response == nil {
