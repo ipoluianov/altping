@@ -48,6 +48,8 @@ func NewCreateConfigDialog(onAccept func(), onCancel func()) *CreateConfigDialog
 	c.panelContent.AddWidgetOnGrid(ui.NewLabel("Name:"), 0, 0)
 	c.panelContent.AddWidgetOnGrid(c.txtName, 0, 1)
 
+	c.txtName.Focus()
+
 	return &c
 }
 

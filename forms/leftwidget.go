@@ -47,7 +47,13 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 
 	lastCreatedLeftWidget = &c
 
+	c.lvItems.Focus()
+
 	return &c
+}
+
+func (c *LeftWidget) FocusTable() {
+	c.lvItems.Focus()
 }
 
 func (c *LeftWidget) FullRestart() {
@@ -68,6 +74,20 @@ func (c *LeftWidget) loadHosts() {
 
 		c.lvItems.SetCellData2(i, 0, host)
 		c.lvItems.SetCellText2(i, 0, displayName)
+
+		c.lvItems.SetCellText2(i, 1, "-")
+		c.lvItems.SetCellText2(i, 2, "-")
+		c.lvItems.SetCellText2(i, 3, "-")
+		c.lvItems.SetCellText2(i, 4, "-")
+		c.lvItems.SetCellText2(i, 5, "-")
+
+		col := ui.ColorFromHex("#888888")
+		c.lvItems.SetCellColor(i, 0, col)
+		c.lvItems.SetCellColor(i, 1, col)
+		c.lvItems.SetCellColor(i, 2, col)
+		c.lvItems.SetCellColor(i, 3, col)
+		c.lvItems.SetCellColor(i, 4, col)
+		c.lvItems.SetCellColor(i, 5, col)
 	}
 }
 

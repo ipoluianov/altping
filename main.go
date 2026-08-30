@@ -13,6 +13,7 @@ func main() {
 	mainForm := forms.NewMainForm()
 	form.Panel().AddWidgetOnGrid(mainForm, 0, 0)
 	system.Get().Start()
+	ui.MainForm.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
 	form.Exec()
 	system.Get().Stop()
 }

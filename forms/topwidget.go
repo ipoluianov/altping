@@ -11,7 +11,6 @@ type TopWidget struct {
 
 	btnNew    *ui.Button
 	btnOpen   *ui.Button
-	btnSave   *ui.Button
 	btnSaveAs *ui.Button
 
 	btnAddItem    *ui.Button
@@ -23,6 +22,8 @@ type TopWidget struct {
 	btnStop    *ui.Button
 }
 
+var lastCreatedTopWidget *TopWidget
+
 func NewTopWidget() *TopWidget {
 	var c TopWidget
 	c.InitWidget()
@@ -32,8 +33,6 @@ func NewTopWidget() *TopWidget {
 	c.btnNew.SetOnClick(c.onBtnNew)
 	c.btnOpen = ui.NewButton("Open")
 	c.btnOpen.SetOnClick(c.onBtnOpen)
-	c.btnSave = ui.NewButton("Save")
-	c.btnSave.SetOnClick(c.onBtnSave)
 	c.btnSaveAs = ui.NewButton("Save As")
 	c.btnSaveAs.SetOnClick(c.onBtnSaveAs)
 
@@ -53,8 +52,7 @@ func NewTopWidget() *TopWidget {
 
 	c.AddWidgetOnGrid(c.btnNew, 0, 0)
 	c.AddWidgetOnGrid(c.btnOpen, 0, 1)
-	c.AddWidgetOnGrid(c.btnSave, 0, 2)
-	c.AddWidgetOnGrid(c.btnSaveAs, 0, 3)
+	c.AddWidgetOnGrid(c.btnSaveAs, 0, 2)
 
 	c.AddWidgetOnGrid(c.btnAddItem, 0, 4)
 	c.AddWidgetOnGrid(c.btnEditItem, 0, 5)
@@ -67,6 +65,8 @@ func NewTopWidget() *TopWidget {
 	c.AddWidgetOnGrid(c.btnStop, 0, 13)
 
 	c.AddTimer(200, c.timerUpdate)
+
+	lastCreatedTopWidget = &c
 
 	return &c
 }
@@ -90,7 +90,23 @@ func (c *TopWidget) onBtnNew() {
 	dialog.OnAccept = func() {
 		configName := dialogContent.GetConfigName()
 		if configName != "" {
-			config.NewConfig(configName)
+			cfg, err := config.NewConfig(configName)
+			if err != nil {
+				ui.ShowMessageBox("Error", err.Error())
+				return
+			}
+			system.Get().Stop()
+			err = config.LoadConfig(cfg.ID)
+			if err != nil {
+				ui.ShowMessageBox("Error", err.Error())
+				system.Get().Start()
+				return
+			}
+			lastCreatedLeftWidget.FullRestart()
+			system.Get().Start()
+
+			lastCreatedLeftWidget.FocusTable()
+
 		}
 	}
 	dialog.ShowDialog()
@@ -102,6 +118,7 @@ func (c *TopWidget) onBtnOpen() {
 	dialog := ui.NewDialog("Open Config", 640, 480)
 	dialogContent := NewOpenConfigDialog(currentConfigId, dialog.Accept, func() {
 		dialog.Reject()
+		lastCreatedLeftWidget.FocusTable()
 	})
 	dialog.ContentPanel().AddWidgetOnGrid(dialogContent, 0, 0)
 	dialog.OnAccept = func() {
@@ -116,13 +133,11 @@ func (c *TopWidget) onBtnOpen() {
 			}
 			lastCreatedLeftWidget.FullRestart()
 			system.Get().Start()
+
+			lastCreatedLeftWidget.FocusTable()
 		}
 	}
 	dialog.ShowDialog()
-}
-
-func (c *TopWidget) onBtnSave() {
-	config.Get().Save()
 }
 
 func (c *TopWidget) onBtnSaveAs() {

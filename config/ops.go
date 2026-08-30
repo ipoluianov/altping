@@ -70,6 +70,8 @@ func NewConfig(name string) (*Config, error) {
 	id := hex.EncodeToString(rndbytes)
 	var config Config
 	config.ID = id
+	config.Name = name
+	config.Hosts = make([]*ConfigHost, 0)
 	err = config.Save()
 	if err != nil {
 		return nil, err
