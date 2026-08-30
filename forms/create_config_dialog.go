@@ -1,6 +1,9 @@
 package forms
 
-import "github.com/u00io/nuiforms/ui"
+import (
+	"github.com/u00io/nui/nuikey"
+	"github.com/u00io/nuiforms/ui"
+)
 
 type CreateConfigDialog struct {
 	ui.Widget
@@ -49,6 +52,21 @@ func NewCreateConfigDialog(onAccept func(), onCancel func()) *CreateConfigDialog
 	c.panelContent.AddWidgetOnGrid(c.txtName, 0, 1)
 
 	c.txtName.Focus()
+	c.txtName.SetOnKeyDown(func(key nuikey.Key, mods nuikey.KeyModifiers) bool {
+		if key == nuikey.KeyEnter {
+			if c.onAccept != nil {
+				c.onAccept()
+			}
+			return true
+		}
+		if key == nuikey.KeyEsc {
+			if c.onCancel != nil {
+				c.onCancel()
+			}
+			return true
+		}
+		return c.txtName.KeyDown(key, mods)
+	})
 
 	return &c
 }

@@ -182,7 +182,6 @@ func (c *TopWidget) onBtnEditItem() {
 		}
 	}
 	dialog.ShowDialog()
-
 }
 
 func (c *TopWidget) onBtnRemoveItem() {
