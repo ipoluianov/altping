@@ -9,6 +9,8 @@ import (
 	"github.com/u00io/nuiforms/ui"
 )
 
+var lastCreatedLeftWidget *LeftWidget
+
 type LeftWidget struct {
 	ui.Widget
 
@@ -43,7 +45,15 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 
 	c.AddTimer(200, c.timerUpdate)
 
+	lastCreatedLeftWidget = &c
+
 	return &c
+}
+
+func (c *LeftWidget) FullRestart() {
+	system.Get().Stop()
+	c.loadHosts()
+	system.Get().Start()
 }
 
 func (c *LeftWidget) loadHosts() {
@@ -59,6 +69,15 @@ func (c *LeftWidget) loadHosts() {
 		c.lvItems.SetCellData2(i, 0, host)
 		c.lvItems.SetCellText2(i, 0, displayName)
 	}
+}
+
+func (c *LeftWidget) GetSelectedHostConfig() *config.ConfigHost {
+	row := c.lvItems.CurrentRow()
+	if row < 0 {
+		return nil
+	}
+	host := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
+	return host
 }
 
 func (c *LeftWidget) timerUpdate() {

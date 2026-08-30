@@ -1,66 +1,60 @@
 package config
 
+import (
+	"encoding/json"
+	"os"
+	"path"
+)
+
 type ConfigHost struct {
 	ID          string
 	DisplayName string
 	Hostname    string
-	TimeoutMs   int
-	DataSize    int
 }
 
 type Config struct {
+	ID    string
+	Name  string
 	Hosts []*ConfigHost
 }
 
-func Get() *Config {
+var currentConfig *Config
+
+func init() {
 	var c Config
+	c.ID = "default"
+	c.Name = "Default Config"
 	c.Hosts = make([]*ConfigHost, 0)
-	{
-		var host ConfigHost
-		host.ID = "001"
-		host.DisplayName = "LocalHost"
-		host.Hostname = "localhost"
-		host.TimeoutMs = 1000
-		host.DataSize = 64
-		c.Hosts = append(c.Hosts, &host)
+	c.Load("default")
+	currentConfig = &c
+}
+
+func Get() *Config {
+	return currentConfig
+}
+
+func LoadConfig(id string) error {
+	var c Config
+	c.ID = id
+	err := c.Load(id)
+	if err != nil {
+		return err
 	}
-	{
-		var host ConfigHost
-		host.ID = "002"
-		host.DisplayName = "Example"
-		host.Hostname = "example.com"
-		host.TimeoutMs = 2000
-		host.DataSize = 128
-		c.Hosts = append(c.Hosts, &host)
+	currentConfig = &c
+	return nil
+}
+
+func (c *Config) AddHost(host ConfigHost) {
+	c.Hosts = append(c.Hosts, &host)
+}
+
+func (c *Config) RemoveHost(id string) {
+	for i, host := range c.Hosts {
+		if host.ID == id {
+			c.Hosts = append(c.Hosts[:i], c.Hosts[i+1:]...)
+			return
+		}
 	}
-	{
-		var host ConfigHost
-		host.ID = "003"
-		host.DisplayName = ""
-		host.Hostname = "192.0.2.1"
-		host.TimeoutMs = 1000
-		host.DataSize = 64
-		c.Hosts = append(c.Hosts, &host)
-	}
-	{
-		var host ConfigHost
-		host.ID = "004"
-		host.DisplayName = ""
-		host.Hostname = "altbins.com"
-		host.TimeoutMs = 2000
-		host.DataSize = 64
-		c.Hosts = append(c.Hosts, &host)
-	}
-	{
-		var host ConfigHost
-		host.ID = "005"
-		host.DisplayName = ""
-		host.Hostname = "altbins.pro"
-		host.TimeoutMs = 2000
-		host.DataSize = 64
-		c.Hosts = append(c.Hosts, &host)
-	}
-	return &c
 }
 
 func (c *Config) GetHost(id string) ConfigHost {
@@ -71,4 +65,30 @@ func (c *Config) GetHost(id string) ConfigHost {
 	}
 	var empty ConfigHost
 	return empty
+}
+
+func (c *Config) Save() error {
+	bs, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	fullPath := path.Join(ConfigDirectory(), c.ID+".ws")
+	mkdirallErr := os.MkdirAll(ConfigDirectory(), 0755)
+	if mkdirallErr != nil {
+		return mkdirallErr
+	}
+	return os.WriteFile(fullPath, bs, 0644)
+}
+
+func (c *Config) Load(id string) error {
+	fullPath := path.Join(ConfigDirectory(), id+".ws")
+	bs, err := os.ReadFile(fullPath)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(bs, c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

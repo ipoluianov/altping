@@ -1,0 +1,86 @@
+package forms
+
+import (
+	"github.com/ipoluianov/altping/config"
+	"github.com/u00io/nuiforms/ui"
+)
+
+type EditItemDialog struct {
+	ui.Widget
+
+	hostConfig config.ConfigHost
+
+	lblName *ui.Label
+	txtName *ui.TextBox
+
+	lblHost *ui.Label
+	txtHost *ui.TextBox
+
+	btnOK     *ui.Button
+	btnCancel *ui.Button
+
+	panelContent *ui.Panel
+	panelButtons *ui.Panel
+
+	onAccept func()
+	onCancel func()
+}
+
+func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(), onCancel func()) *EditItemDialog {
+	var c EditItemDialog
+	c.InitWidget()
+
+	if hostConfig != nil {
+		c.hostConfig = *hostConfig
+	}
+
+	c.panelContent = ui.NewPanel()
+	c.AddWidgetOnGrid(c.panelContent, 0, 0)
+	c.panelButtons = ui.NewPanel()
+	c.AddWidgetOnGrid(c.panelButtons, 1, 0)
+
+	c.btnOK = ui.NewButton("OK")
+	c.onAccept = onAccept
+	c.onCancel = onCancel
+	c.btnOK.SetOnClick(func() {
+		if c.onAccept != nil {
+			c.onAccept()
+		}
+	})
+	c.btnCancel = ui.NewButton("Cancel")
+	c.btnCancel.SetOnClick(func() {
+		if c.onCancel != nil {
+			c.onCancel()
+		}
+	})
+
+	c.panelButtons.AddWidgetOnGrid(c.btnOK, 0, 0)
+	c.panelButtons.AddWidgetOnGrid(c.btnCancel, 0, 1)
+
+	c.lblName = ui.NewLabel("Name:")
+	c.txtName = ui.NewTextBox()
+	c.txtName.SetText(c.hostConfig.DisplayName)
+	c.panelContent.AddWidgetOnGrid(c.lblName, 0, 0)
+	c.panelContent.AddWidgetOnGrid(c.txtName, 0, 1)
+
+	c.lblHost = ui.NewLabel("Host:")
+	c.txtHost = ui.NewTextBox()
+	c.txtHost.SetText(c.hostConfig.Hostname)
+	c.panelContent.AddWidgetOnGrid(c.lblHost, 1, 0)
+	c.panelContent.AddWidgetOnGrid(c.txtHost, 1, 1)
+
+	if c.hostConfig.ID == "" {
+		c.txtHost.SetText("127.0.0.1")
+		c.txtHost.MoveCursorToEnd()
+		c.txtHost.SelectAllText()
+		c.txtHost.Focus()
+	}
+
+	return &c
+}
+
+func (c *EditItemDialog) GetHostConfig() *config.ConfigHost {
+	c.hostConfig.DisplayName = c.txtName.Text()
+	c.hostConfig.Hostname = c.txtHost.Text()
+	return &c.hostConfig
+}

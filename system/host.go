@@ -76,6 +76,8 @@ func (c *Host) Start(chanStopped chan struct{}) {
 	c.resetStat()
 	c.chanStop = chanStopped
 	go c.thWork()
+
+	fmt.Println("Host Start", c.configHost.ID)
 }
 
 func (c *Host) Stop() {
@@ -174,10 +176,13 @@ func (c *Host) thWork() {
 	c.mtx.Lock()
 	c.started = true
 	c.mtx.Unlock()
+
+	timeout := time.Duration(1000) * time.Millisecond
+
 	for {
 		// select with timeout
 		select {
-		case <-time.After(time.Duration(c.configHost.TimeoutMs) * time.Millisecond):
+		case <-time.After(timeout):
 		case <-c.chanStop:
 			c.mtx.Lock()
 			c.started = false
@@ -202,6 +207,7 @@ func (c *Host) thWork() {
 				c.statERR++
 				c.resultErr = err
 			} else {
+				fmt.Println("OK", c.configHost.ID)
 				c.statOK++
 				c.resultErr = nil
 				ipWithoutPort, _, _ := net.SplitHostPort(peer.String())

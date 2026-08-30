@@ -34,6 +34,10 @@ func (c *System) Start() {
 }
 
 func (c *System) Stop() {
+	if c.chanStopped == nil {
+		return
+	}
+
 	c.pingServer.Stop()
 	if c.chanStopped != nil {
 		close(c.chanStopped)
@@ -78,43 +82,11 @@ func (c *System) GetHostLastState(id string) HostState {
 
 func (c *System) UpdateConfig() {
 	config := config.Get()
-
-	// Build a map of existing hosts for quick lookup
-	existingHosts := make(map[string]*Host)
-	for _, host := range c.Hosts {
-		existingHosts[host.ID] = host
-	}
-
-	// Update existing hosts or add new ones based on the config
+	c.Hosts = nil
 	for _, hostConfig := range config.Hosts {
 		var host *Host
-		for _, h := range c.Hosts {
-			if h.ID == hostConfig.ID {
-				host = h
-				break
-			}
-		}
-		if host == nil {
-			host = NewHost(hostConfig.ID, c.pingServer)
-			c.Hosts = append(c.Hosts, host)
-		}
+		host = NewHost(hostConfig.ID, c.pingServer)
+		c.Hosts = append(c.Hosts, host)
 		host.UpdateConfig()
-		delete(existingHosts, hostConfig.ID)
-	}
-
-	// Remove hosts that are no longer in the config
-	for _, host := range existingHosts {
-		c.removeHost(host.ID)
-	}
-}
-
-// removeHost removes a host from the system by its ID. It stops the host and removes it from the Hosts slice.
-func (c *System) removeHost(id string) {
-	for i, h := range c.Hosts {
-		if h.ID == id {
-			h.Stop()
-			c.Hosts = append(c.Hosts[:i], c.Hosts[i+1:]...)
-			break
-		}
 	}
 }
