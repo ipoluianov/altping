@@ -210,8 +210,12 @@ func (c *Host) thWork() {
 				fmt.Println("OK", c.configHost.ID)
 				c.statOK++
 				c.resultErr = nil
-				ipWithoutPort, _, _ := net.SplitHostPort(peer.String())
-				liveIP = ipWithoutPort
+
+				var ipAddr *net.IPAddr
+				ipAddr, ok := peer.(*net.IPAddr)
+				if ok {
+					liveIP = ipAddr.IP.String()
+				}
 			}
 			c.resultLastLiveIP = liveIP
 		} else {
