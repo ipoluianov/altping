@@ -1,12 +1,15 @@
 package main
 
 import (
+	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/forms"
 	"github.com/ipoluianov/altping/system"
 	"github.com/u00io/nuiforms/ui"
 )
 
 func main() {
+	config.Init()
+
 	form := ui.NewForm()
 	form.SetTitle("Alt Ping")
 	form.SetSize(1100, 800)
@@ -16,4 +19,5 @@ func main() {
 	ui.MainForm.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
 	form.Exec()
 	system.Get().Stop()
+	config.SaveLastConfigId()
 }

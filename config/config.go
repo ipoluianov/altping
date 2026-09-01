@@ -20,28 +20,9 @@ type Config struct {
 
 var currentConfig *Config
 
-func init() {
+func NewConfig() *Config {
 	var c Config
-	c.ID = "default"
-	c.Name = "Default Config"
-	c.Hosts = make([]*ConfigHost, 0)
-	c.Load("default")
-	currentConfig = &c
-}
-
-func Get() *Config {
-	return currentConfig
-}
-
-func LoadConfig(id string) error {
-	var c Config
-	c.ID = id
-	err := c.Load(id)
-	if err != nil {
-		return err
-	}
-	currentConfig = &c
-	return nil
+	return &c
 }
 
 func (c *Config) AddHost(host ConfigHost) {

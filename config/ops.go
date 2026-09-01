@@ -61,22 +61,67 @@ func ConfigDirectory() string {
 	return configPath
 }
 
-func NewConfig(name string) (*Config, error) {
-	rndbytes := make([]byte, 8)
-	_, err := rand.Read(rndbytes)
-	if err != nil {
-		return nil, err
+func loadDefaultConfig() {
+	configDir := ConfigDirectory()
+
+	configIdLast := ""
+	bsLastConfigId, err := os.ReadFile(path.Join(configDir, "last_config_id.txt"))
+	if err == nil {
+		configIdLast = string(bsLastConfigId)
 	}
-	id := hex.EncodeToString(rndbytes)
-	var config Config
+
+	cfg := NewConfig()
+	err = cfg.Load(configIdLast)
+	if err != nil {
+		cfg, _ = CreateNewConfig("Default")
+		if cfg == nil {
+			cfg = NewConfig()
+		}
+	}
+	currentConfig = cfg
+}
+
+func Init() {
+	loadDefaultConfig()
+}
+
+func Get() *Config {
+	return currentConfig
+}
+
+func SaveLastConfigId() {
+	if currentConfig == nil {
+		return
+	}
+	configPath := ConfigDirectory()
+	fullPath := path.Join(configPath, "last_config_id.txt")
+	_ = os.MkdirAll(filepath.Dir(fullPath), 0755)
+	_ = os.WriteFile(fullPath, []byte(currentConfig.ID), 0644)
+}
+
+func LoadConfig(id string) error {
+	var c Config
+	c.ID = id
+	err := c.Load(id)
+	if err != nil {
+		return err
+	}
+	currentConfig = &c
+	return nil
+}
+
+func CreateNewConfig(name string) (*Config, error) {
+	var err error
+	id := generateId()
+	config := NewConfig()
 	config.ID = id
 	config.Name = name
 	config.Hosts = make([]*ConfigHost, 0)
 	err = config.Save()
 	if err != nil {
-		return nil, err
+		return config, err
 	}
-	return &config, nil
+	return config, nil
 }
 
 func Configs() []*Config {
@@ -94,4 +139,14 @@ func Configs() []*Config {
 		}
 	}
 	return configs
+}
+
+func generateId() string {
+	rndbytes := make([]byte, 8)
+	_, err := rand.Read(rndbytes)
+	if err != nil {
+		return "default"
+	}
+	id := hex.EncodeToString(rndbytes)
+	return id
 }

@@ -90,7 +90,7 @@ func (c *TopWidget) onBtnNew() {
 	dialog.OnAccept = func() {
 		configName := dialogContent.GetConfigName()
 		if configName != "" {
-			cfg, err := config.NewConfig(configName)
+			cfg, err := config.CreateNewConfig(configName)
 			if err != nil {
 				ui.ShowMessageBox("Error", err.Error())
 				return
