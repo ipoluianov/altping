@@ -6,6 +6,10 @@ import (
 )
 
 func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
+	if ui.MainForm.TopPopupWidget() != nil {
+		return false
+	}
+
 	if key == nuikey.KeyN {
 		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
 			lastCreatedTopWidget.onBtnNew()

@@ -216,6 +216,10 @@ func (c *Host) thWork() {
 				if ok {
 					liveIP = ipAddr.IP.String()
 				}
+				udpAddr, ok := peer.(*net.UDPAddr)
+				if ok {
+					liveIP = udpAddr.IP.String()
+				}
 			}
 			c.resultLastLiveIP = liveIP
 		} else {
