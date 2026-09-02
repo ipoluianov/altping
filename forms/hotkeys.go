@@ -38,8 +38,15 @@ func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 		return true
 	}
 
+	if key == nuikey.KeyE {
+		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // E
+			lastCreatedTopWidget.onBtnEditItem()
+		}
+		return true
+	}
+
 	if key == nuikey.KeyDelete || key == nuikey.KeyBackspace {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
+		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // Delete or Backspace
 			lastCreatedTopWidget.onBtnRemoveItem()
 		}
 		return true

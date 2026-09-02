@@ -2,6 +2,7 @@ package forms
 
 import (
 	"github.com/ipoluianov/altping/config"
+	"github.com/u00io/nui/nuikey"
 	"github.com/u00io/nuiforms/ui"
 )
 
@@ -75,6 +76,40 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(), onCancel 
 		c.txtHost.SelectAllText()
 		c.txtHost.Focus()
 	}
+
+	c.txtName.SetOnKeyDown(func(key nuikey.Key, mods nuikey.KeyModifiers) bool {
+		if key == nuikey.KeyEnter {
+			if c.onAccept != nil {
+				c.onAccept()
+			}
+			return true
+		}
+		if key == nuikey.KeyEsc {
+			if c.onCancel != nil {
+				c.onCancel()
+			}
+			return true
+		}
+		return c.txtName.KeyDown(key, mods)
+	})
+
+	c.txtHost.SetOnKeyDown(func(key nuikey.Key, mods nuikey.KeyModifiers) bool {
+		if key == nuikey.KeyEnter {
+			if c.onAccept != nil {
+				c.onAccept()
+			}
+			return true
+		}
+		if key == nuikey.KeyEsc {
+			if c.onCancel != nil {
+				c.onCancel()
+			}
+			return true
+		}
+		return c.txtHost.KeyDown(key, mods)
+	})
+
+	c.txtHost.Focus()
 
 	return &c
 }
