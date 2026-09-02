@@ -156,6 +156,8 @@ func (c *TopWidget) onBtnAddItem() {
 			config.Get().AddHost(*hostConfig)
 			config.Get().Save()
 			lastCreatedLeftWidget.FullRestart()
+
+			lastCreatedLeftWidget.FocusTable()
 		}
 	}
 	dialog.ShowDialog()
@@ -179,6 +181,8 @@ func (c *TopWidget) onBtnEditItem() {
 			selectedHost.Hostname = hostConfig.Hostname
 			config.Get().Save()
 			lastCreatedLeftWidget.FullRestart()
+
+			lastCreatedLeftWidget.FocusTable()
 		}
 	}
 	dialog.ShowDialog()
@@ -195,6 +199,8 @@ func (c *TopWidget) onBtnRemoveItem() {
 		config.RemoveHost(selectedHost.ID)
 		config.Save()
 		lastCreatedLeftWidget.FullRestart()
+
+		lastCreatedLeftWidget.FocusTable()
 	}, func() {
 	})
 }
