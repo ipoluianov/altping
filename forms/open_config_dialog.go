@@ -62,6 +62,8 @@ func NewOpenConfigDialog(currentConfigId string, onAccept func(), onCancel func(
 	c.lvConfigs.SetColumnName(1, "Hosts Count")
 	c.lvConfigs.SetColumnName(2, "Hosts")
 
+	c.lvConfigs.SetOnCellMouseDblClick(c.onConfigDoubleClick)
+
 	configs := config.Configs()
 	c.lvConfigs.SetRowCount(len(configs))
 	for i, cfg := range configs {
@@ -96,4 +98,11 @@ func (c *OpenConfigDialog) GetSelectedConfig() *config.Config {
 	}
 	config := c.lvConfigs.GetCellData2(row, 0).(*config.Config)
 	return config
+}
+
+func (c *OpenConfigDialog) onConfigDoubleClick() {
+	cfg := c.GetSelectedConfig()
+	if cfg != nil && c.onAccept != nil {
+		c.onAccept()
+	}
 }
