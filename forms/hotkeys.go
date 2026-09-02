@@ -31,6 +31,13 @@ func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 		return true
 	}
 
+	if key == nuikey.KeyA {
+		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
+			lastCreatedTopWidget.onBtnAddItem()
+		}
+		return true
+	}
+
 	if key == nuikey.KeyX {
 		if !mods.Shift && mods.Alt && !mods.Ctrl && !mods.Cmd { // Alt+X
 			ui.MainForm.Close()
