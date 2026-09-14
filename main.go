@@ -9,14 +9,14 @@ import (
 
 func main() {
 	config.Init()
-
 	form := ui.NewForm()
 	form.SetTitle("Alt Ping")
 	form.SetSize(1100, 800)
 	mainForm := forms.NewMainForm()
-	form.Panel().AddWidgetOnGrid(mainForm, 0, 0)
+	form.Panel().AddWidget(mainForm, 0, 0)
 	system.Get().Start()
-	ui.MainForm.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
+	//ui.MainForm.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
+	form.Show()
 	form.Exec()
 	system.Get().Stop()
 	config.SaveLastConfigId()

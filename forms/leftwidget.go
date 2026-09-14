@@ -21,7 +21,7 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 	var c LeftWidget
 	c.InitWidget()
 	c.lvItems = ui.NewTable()
-	c.AddWidgetOnGrid(c.lvItems, 0, 0)
+	c.AddWidget(c.lvItems, 0, 0)
 	//c.SetMinWidth(700)
 	//c.SetMaxWidth(700)
 

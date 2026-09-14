@@ -36,9 +36,9 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(), onCancel 
 	}
 
 	c.panelContent = ui.NewPanel()
-	c.AddWidgetOnGrid(c.panelContent, 0, 0)
+	c.AddWidget(c.panelContent, 0, 0)
 	c.panelButtons = ui.NewPanel()
-	c.AddWidgetOnGrid(c.panelButtons, 1, 0)
+	c.AddWidget(c.panelButtons, 1, 0)
 
 	c.btnOK = ui.NewButton("OK")
 	c.onAccept = onAccept
@@ -55,20 +55,20 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(), onCancel 
 		}
 	})
 
-	c.panelButtons.AddWidgetOnGrid(c.btnOK, 0, 0)
-	c.panelButtons.AddWidgetOnGrid(c.btnCancel, 0, 1)
+	c.panelButtons.AddWidget(c.btnOK, 0, 0)
+	c.panelButtons.AddWidget(c.btnCancel, 0, 1)
 
 	c.lblName = ui.NewLabel("Name:")
 	c.txtName = ui.NewTextBox()
 	c.txtName.SetText(c.hostConfig.DisplayName)
-	c.panelContent.AddWidgetOnGrid(c.lblName, 0, 0)
-	c.panelContent.AddWidgetOnGrid(c.txtName, 0, 1)
+	c.panelContent.AddWidget(c.lblName, 0, 0)
+	c.panelContent.AddWidget(c.txtName, 0, 1)
 
 	c.lblHost = ui.NewLabel("Host:")
 	c.txtHost = ui.NewTextBox()
 	c.txtHost.SetText(c.hostConfig.Hostname)
-	c.panelContent.AddWidgetOnGrid(c.lblHost, 1, 0)
-	c.panelContent.AddWidgetOnGrid(c.txtHost, 1, 1)
+	c.panelContent.AddWidget(c.lblHost, 1, 0)
+	c.panelContent.AddWidget(c.txtHost, 1, 1)
 
 	if c.hostConfig.ID == "" {
 		c.txtHost.SetText("127.0.0.1")

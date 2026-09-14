@@ -27,9 +27,9 @@ func NewOpenConfigDialog(currentConfigId string, onAccept func(), onCancel func(
 	var c OpenConfigDialog
 	c.InitWidget()
 	c.panelContent = ui.NewPanel()
-	c.AddWidgetOnGrid(c.panelContent, 0, 0)
+	c.AddWidget(c.panelContent, 0, 0)
 	c.panelButtons = ui.NewPanel()
-	c.AddWidgetOnGrid(c.panelButtons, 1, 0)
+	c.AddWidget(c.panelButtons, 1, 0)
 
 	c.btnOK = ui.NewButton("OK")
 	c.onAccept = onAccept
@@ -46,13 +46,13 @@ func NewOpenConfigDialog(currentConfigId string, onAccept func(), onCancel func(
 		}
 	})
 
-	c.panelButtons.AddWidgetOnGrid(c.btnOK, 0, 0)
-	c.panelButtons.AddWidgetOnGrid(c.btnCancel, 0, 1)
+	c.panelButtons.AddWidget(c.btnOK, 0, 0)
+	c.panelButtons.AddWidget(c.btnCancel, 0, 1)
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingCell(false)
-	c.panelContent.AddWidgetOnGrid(ui.NewLabel("Configs:"), 0, 0)
-	c.panelContent.AddWidgetOnGrid(c.lvConfigs, 1, 0)
+	c.panelContent.AddWidget(ui.NewLabel("Configs:"), 0, 0)
+	c.panelContent.AddWidget(c.lvConfigs, 1, 0)
 
 	c.lvConfigs.SetColumnCount(3)
 	c.lvConfigs.SetColumnWidth(0, 200)

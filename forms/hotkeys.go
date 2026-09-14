@@ -1,11 +1,6 @@
 package forms
 
-import (
-	"github.com/u00io/nui/nuikey"
-	"github.com/u00io/nuiforms/ui"
-)
-
-func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
+/*func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 	if ui.MainForm.TopPopupWidget() != nil {
 		return false
 	}
@@ -73,3 +68,4 @@ func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 
 	return false
 }
+*/

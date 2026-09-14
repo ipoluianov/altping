@@ -3,7 +3,7 @@ module github.com/ipoluianov/altping
 go 1.25.5
 
 require (
-	github.com/u00io/nui v0.0.26
+	github.com/u00io/nui v0.0.27
 	github.com/u00io/nuiforms v0.0.48
 	golang.org/x/net v0.58.0
 )

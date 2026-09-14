@@ -50,19 +50,19 @@ func NewTopWidget() *TopWidget {
 	c.btnStop = ui.NewButton("Stop")
 	c.btnStop.SetOnClick(c.onBtnStop)
 
-	c.AddWidgetOnGrid(c.btnNew, 0, 0)
-	c.AddWidgetOnGrid(c.btnOpen, 0, 1)
-	c.AddWidgetOnGrid(c.btnSaveAs, 0, 2)
+	c.AddWidget(c.btnNew, 0, 0)
+	c.AddWidget(c.btnOpen, 0, 1)
+	c.AddWidget(c.btnSaveAs, 0, 2)
 
-	c.AddWidgetOnGrid(c.btnAddItem, 0, 4)
-	c.AddWidgetOnGrid(c.btnEditItem, 0, 5)
-	c.AddWidgetOnGrid(c.btnRemoveItem, 0, 6)
+	c.AddWidget(c.btnAddItem, 0, 4)
+	c.AddWidget(c.btnEditItem, 0, 5)
+	c.AddWidget(c.btnRemoveItem, 0, 6)
 
-	c.AddWidgetOnGrid(ui.NewHSpacer(), 0, 10)
+	c.AddWidget(ui.NewHSpacer(), 0, 10)
 
-	c.AddWidgetOnGrid(c.btnDetails, 0, 11)
-	c.AddWidgetOnGrid(c.btnStart, 0, 12)
-	c.AddWidgetOnGrid(c.btnStop, 0, 13)
+	c.AddWidget(c.btnDetails, 0, 11)
+	c.AddWidget(c.btnStart, 0, 12)
+	c.AddWidget(c.btnStop, 0, 13)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -82,23 +82,19 @@ func (c *TopWidget) timerUpdate() {
 }
 
 func (c *TopWidget) onBtnNew() {
-	dialog := ui.NewDialog("New Config", 480, 160)
-	dialogContent := NewCreateConfigDialog(dialog.Accept, func() {
-		dialog.Reject()
-	})
-	dialog.ContentPanel().AddWidgetOnGrid(dialogContent, 0, 0)
-	dialog.OnAccept = func() {
-		configName := dialogContent.GetConfigName()
+	//dialog := ui.NewDialog("New Config", 480, 160)
+
+	ShowCreateConfigDialog(c.Form(), func(configName string) {
 		if configName != "" {
 			cfg, err := config.CreateNewConfig(configName)
 			if err != nil {
-				ui.ShowMessageBox("Error", err.Error())
+				ui.ShowMessageBox(c, "Error", err.Error())
 				return
 			}
 			system.Get().Stop()
 			err = config.LoadConfig(cfg.ID)
 			if err != nil {
-				ui.ShowMessageBox("Error", err.Error())
+				ui.ShowMessageBox(c, "Error", err.Error())
 				system.Get().Start()
 				return
 			}
@@ -108,8 +104,9 @@ func (c *TopWidget) onBtnNew() {
 			lastCreatedLeftWidget.FocusTable()
 
 		}
-	}
-	dialog.ShowDialog()
+	}, func() {
+
+	})
 }
 
 func (c *TopWidget) onBtnOpen() {
@@ -120,14 +117,14 @@ func (c *TopWidget) onBtnOpen() {
 		dialog.Reject()
 		lastCreatedLeftWidget.FocusTable()
 	})
-	dialog.ContentPanel().AddWidgetOnGrid(dialogContent, 0, 0)
+	dialog.ContentPanel().AddWidget(dialogContent, 0, 0)
 	dialog.OnAccept = func() {
 		selectedConfig := dialogContent.GetSelectedConfig()
 		if selectedConfig != nil {
 			system.Get().Stop()
 			err := config.LoadConfig(selectedConfig.ID)
 			if err != nil {
-				ui.ShowMessageBox("Error", err.Error())
+				ui.ShowMessageBox(c, "Error", err.Error())
 				system.Get().Start()
 				return
 			}
@@ -148,7 +145,7 @@ func (c *TopWidget) onBtnAddItem() {
 	dialogContent := NewEditItemDialog(nil, dialog.Accept, func() {
 		dialog.Reject()
 	})
-	dialog.ContentPanel().AddWidgetOnGrid(dialogContent, 0, 0)
+	dialog.ContentPanel().AddWidget(dialogContent, 0, 0)
 	dialog.OnAccept = func() {
 		hostConfig := dialogContent.GetHostConfig()
 		if hostConfig != nil {
@@ -173,7 +170,7 @@ func (c *TopWidget) onBtnEditItem() {
 	dialogContent := NewEditItemDialog(selectedHost, dialog.Accept, func() {
 		dialog.Reject()
 	})
-	dialog.ContentPanel().AddWidgetOnGrid(dialogContent, 0, 0)
+	dialog.ContentPanel().AddWidget(dialogContent, 0, 0)
 	dialog.OnAccept = func() {
 		hostConfig := dialogContent.GetHostConfig()
 		if hostConfig != nil {
@@ -194,7 +191,7 @@ func (c *TopWidget) onBtnRemoveItem() {
 		return
 	}
 
-	ui.ShowQuestionMessageBox("Remove item?", "Remove Selected Item?", func() {
+	ui.ShowQuestionMessageBoxYesNo(c, "Remove item?", "Remove Selected Item?", func() {
 		config := config.Get()
 		config.RemoveHost(selectedHost.ID)
 		config.Save()
