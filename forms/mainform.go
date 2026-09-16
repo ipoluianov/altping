@@ -13,6 +13,8 @@ type MainForm struct {
 	bottomWidget *BottomWidget
 }
 
+var lastCreatedMainWidget *MainForm
+
 func NewMainForm() *MainForm {
 	var c MainForm
 	c.InitWidget()
@@ -21,15 +23,20 @@ func NewMainForm() *MainForm {
 	c.centerWidget = NewCenterWidget()
 	c.bottomWidget = NewBottomWidget()
 
-	c.AddWidget(c.topWidget, 0, 0)
+	c.AddWidget(0, 0, c.topWidget)
 	c.panelCenter = ui.NewPanel()
-	c.panelCenter.AddWidget(c.leftWidget, 0, 0)
-	c.panelCenter.AddWidget(c.centerWidget, 0, 1)
-	c.AddWidget(c.panelCenter, 1, 0)
-	c.AddWidget(c.bottomWidget, 2, 0)
+	c.panelCenter.AddWidget(0, 0, c.leftWidget)
+	c.panelCenter.AddWidget(0, 1, c.centerWidget)
+	c.AddWidget(1, 0, c.panelCenter)
+	c.AddWidget(2, 0, c.bottomWidget)
+	lastCreatedMainWidget = &c
 	return &c
 }
 
 func (c *MainForm) SetMode(mode string) {
 	//c.centerWidget.SetMode(mode)
+}
+
+func (c *MainForm) Activate() {
+	c.leftWidget.FocusTable()
 }

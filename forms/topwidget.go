@@ -50,19 +50,19 @@ func NewTopWidget() *TopWidget {
 	c.btnStop = ui.NewButton("Stop")
 	c.btnStop.SetOnClick(c.onBtnStop)
 
-	c.AddWidget(c.btnNew, 0, 0)
-	c.AddWidget(c.btnOpen, 0, 1)
-	c.AddWidget(c.btnSaveAs, 0, 2)
+	c.AddWidget(0, 0, c.btnNew)
+	c.AddWidget(0, 1, c.btnOpen)
+	c.AddWidget(0, 2, c.btnSaveAs)
 
-	c.AddWidget(c.btnAddItem, 0, 4)
-	c.AddWidget(c.btnEditItem, 0, 5)
-	c.AddWidget(c.btnRemoveItem, 0, 6)
+	c.AddWidget(0, 4, c.btnAddItem)
+	c.AddWidget(0, 5, c.btnEditItem)
+	c.AddWidget(0, 6, c.btnRemoveItem)
 
-	c.AddWidget(ui.NewHSpacer(), 0, 10)
+	c.AddWidget(0, 10, ui.NewHSpacer())
 
-	c.AddWidget(c.btnDetails, 0, 11)
-	c.AddWidget(c.btnStart, 0, 12)
-	c.AddWidget(c.btnStop, 0, 13)
+	c.AddWidget(0, 11, c.btnDetails)
+	c.AddWidget(0, 12, c.btnStart)
+	c.AddWidget(0, 13, c.btnStop)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -82,9 +82,7 @@ func (c *TopWidget) timerUpdate() {
 }
 
 func (c *TopWidget) onBtnNew() {
-	//dialog := ui.NewDialog("New Config", 480, 160)
-
-	ShowCreateConfigDialog(c.Form(), func(configName string) {
+	dialog := NewCreateConfigDialog(func(configName string) {
 		if configName != "" {
 			cfg, err := config.CreateNewConfig(configName)
 			if err != nil {
@@ -105,24 +103,19 @@ func (c *TopWidget) onBtnNew() {
 
 		}
 	}, func() {
-
+		// onCancel callback
 	})
+
+	c.ShowDialog(dialog)
 }
 
 func (c *TopWidget) onBtnOpen() {
 	currentConfigId := config.Get().ID
 
-	dialog := ui.NewDialog("Open Config", 640, 480)
-	dialogContent := NewOpenConfigDialog(currentConfigId, dialog.Accept, func() {
-		dialog.Reject()
-		lastCreatedLeftWidget.FocusTable()
-	})
-	dialog.ContentPanel().AddWidget(dialogContent, 0, 0)
-	dialog.OnAccept = func() {
-		selectedConfig := dialogContent.GetSelectedConfig()
-		if selectedConfig != nil {
+	dialogContent := NewOpenConfigDialog(currentConfigId, func(selectedConfigId string) {
+		if selectedConfigId != "" {
 			system.Get().Stop()
-			err := config.LoadConfig(selectedConfig.ID)
+			err := config.LoadConfig(selectedConfigId)
 			if err != nil {
 				ui.ShowMessageBox(c, "Error", err.Error())
 				system.Get().Start()
@@ -133,15 +126,18 @@ func (c *TopWidget) onBtnOpen() {
 
 			lastCreatedLeftWidget.FocusTable()
 		}
-	}
-	dialog.ShowDialog()
+	}, func() {
+		lastCreatedLeftWidget.FocusTable()
+	})
+
+	c.ShowDialog(dialogContent)
 }
 
 func (c *TopWidget) onBtnSaveAs() {
 }
 
 func (c *TopWidget) onBtnAddItem() {
-	dialog := ui.NewDialog("Edit Item", 480, 160)
+	/*dialog := ui.NewDialog("Edit Item", 480, 160)
 	dialogContent := NewEditItemDialog(nil, dialog.Accept, func() {
 		dialog.Reject()
 	})
@@ -157,11 +153,11 @@ func (c *TopWidget) onBtnAddItem() {
 			lastCreatedLeftWidget.FocusTable()
 		}
 	}
-	dialog.ShowDialog()
+	dialog.ShowDialog()*/
 }
 
 func (c *TopWidget) onBtnEditItem() {
-	selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
+	/*selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
 	if selectedHost == nil {
 		return
 	}
@@ -182,7 +178,7 @@ func (c *TopWidget) onBtnEditItem() {
 			lastCreatedLeftWidget.FocusTable()
 		}
 	}
-	dialog.ShowDialog()
+	dialog.ShowDialog()*/
 }
 
 func (c *TopWidget) onBtnRemoveItem() {

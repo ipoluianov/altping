@@ -16,9 +16,9 @@ func NewBottomWidget() *BottomWidget {
 	c.InitWidget()
 	c.SetPanelPadding(6)
 	c.lblStatus = ui.NewLabel("---")
-	c.AddWidget(c.lblStatus, 0, 0)
-	c.AddWidget(ui.NewHSpacer(), 0, 1)
-	c.AddWidget(ui.NewLabel("AltBins"), 0, 2)
+	c.AddWidget(0, 0, c.lblStatus)
+	c.AddWidget(0, 1, ui.NewHSpacer())
+	c.AddWidget(0, 2, ui.NewLabel("AltBins"))
 
 	c.AddTimer(1000, c.timerUpdate)
 	return &c

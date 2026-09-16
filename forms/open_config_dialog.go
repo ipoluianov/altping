@@ -9,7 +9,7 @@ import (
 )
 
 type OpenConfigDialog struct {
-	ui.Widget
+	ui.DialogContent
 
 	lvConfigs *ui.Table
 
@@ -19,40 +19,36 @@ type OpenConfigDialog struct {
 	panelContent *ui.Panel
 	panelButtons *ui.Panel
 
-	onAccept func()
+	onAccept func(configId string)
 	onCancel func()
 }
 
-func NewOpenConfigDialog(currentConfigId string, onAccept func(), onCancel func()) *OpenConfigDialog {
+func NewOpenConfigDialog(currentConfigId string, onAccept func(configId string), onCancel func()) *OpenConfigDialog {
 	var c OpenConfigDialog
 	c.InitWidget()
 	c.panelContent = ui.NewPanel()
-	c.AddWidget(c.panelContent, 0, 0)
+	c.AddWidget(0, 0, c.panelContent)
 	c.panelButtons = ui.NewPanel()
-	c.AddWidget(c.panelButtons, 1, 0)
+	c.AddWidget(1, 0, c.panelButtons)
 
 	c.btnOK = ui.NewButton("OK")
 	c.onAccept = onAccept
 	c.onCancel = onCancel
 	c.btnOK.SetOnClick(func() {
-		if c.onAccept != nil {
-			c.onAccept()
-		}
+		c.Accept()
 	})
 	c.btnCancel = ui.NewButton("Cancel")
 	c.btnCancel.SetOnClick(func() {
-		if c.onCancel != nil {
-			c.onCancel()
-		}
+		c.Cancel()
 	})
 
-	c.panelButtons.AddWidget(c.btnOK, 0, 0)
-	c.panelButtons.AddWidget(c.btnCancel, 0, 1)
+	c.panelButtons.AddWidget(0, 0, c.btnOK)
+	c.panelButtons.AddWidget(0, 1, c.btnCancel)
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingCell(false)
-	c.panelContent.AddWidget(ui.NewLabel("Configs:"), 0, 0)
-	c.panelContent.AddWidget(c.lvConfigs, 1, 0)
+	c.panelContent.AddWidget(0, 0, ui.NewLabel("Configs:"))
+	c.panelContent.AddWidget(1, 0, c.lvConfigs)
 
 	c.lvConfigs.SetColumnCount(3)
 	c.lvConfigs.SetColumnWidth(0, 200)
@@ -86,7 +82,12 @@ func NewOpenConfigDialog(currentConfigId string, onAccept func(), onCancel func(
 		}
 	}
 
-	c.lvConfigs.Focus()
+	c.OnDialogShow = func() {
+		c.Form().SetTitle("Open Config")
+		c.lvConfigs.Focus()
+		c.Form().SetAcceptButton(c.btnOK)
+		c.Form().SetCancelButton(c.btnCancel)
+	}
 
 	return &c
 }
@@ -101,8 +102,22 @@ func (c *OpenConfigDialog) GetSelectedConfig() *config.Config {
 }
 
 func (c *OpenConfigDialog) onConfigDoubleClick() {
-	cfg := c.GetSelectedConfig()
-	if cfg != nil && c.onAccept != nil {
-		c.onAccept()
+	c.Accept()
+}
+
+func (c *OpenConfigDialog) Accept() {
+	if c.onAccept != nil {
+		selectedConfig := c.GetSelectedConfig()
+		if selectedConfig != nil {
+			c.onAccept(selectedConfig.ID)
+		}
 	}
+	c.Form().Close()
+}
+
+func (c *OpenConfigDialog) Cancel() {
+	if c.onCancel != nil {
+		c.onCancel()
+	}
+	c.Form().Close()
 }

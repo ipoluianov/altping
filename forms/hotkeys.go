@@ -1,10 +1,13 @@
 package forms
 
-/*func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
-	if ui.MainForm.TopPopupWidget() != nil {
-		return false
-	}
+import (
+	"os"
 
+	"github.com/u00io/nui/nuikey"
+	"github.com/u00io/nuiforms/ui"
+)
+
+func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 	if key == nuikey.KeyN {
 		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
 			lastCreatedTopWidget.onBtnNew()
@@ -49,16 +52,16 @@ package forms
 
 	if key == nuikey.KeyX {
 		if !mods.Shift && mods.Alt && !mods.Ctrl && !mods.Cmd { // Alt+X
-			ui.MainForm.Close()
+			lastCreatedMainWidget.Form().Close()
 		}
 		return true
 	}
 
 	if key == nuikey.KeyEsc {
 		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // Esc
-			if ui.MainForm.TopPopupWidget() == nil {
-				ui.ShowQuestionMessageBox("Closing", "Close the application?", func() {
-					ui.MainForm.Close()
+			if lastCreatedMainWidget.Form().TopPopupWidget() == nil {
+				ui.ShowQuestionMessageBoxOKCancel(lastCreatedMainWidget, "Closing", "Close the application?", func() {
+					os.Exit(0)
 				}, func() {
 				})
 				return true
@@ -68,4 +71,3 @@ package forms
 
 	return false
 }
-*/
