@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: myapp
-  MAIN_PATH: ./cmd/myapp
+  APP_NAME: altping
+  MAIN_PATH: ./
 
 permissions:
   contents: write
