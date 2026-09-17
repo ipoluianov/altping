@@ -3,6 +3,10 @@ name: Manual Release
 on:
   workflow_dispatch:
 
+env:
+  APP_NAME: altping
+  MAIN_PATH: ./
+
 permissions:
   contents: write
 
@@ -20,7 +24,7 @@ jobs:
         id: version
         run: |
           TAG=$(git describe --tags --exact-match HEAD 2>/dev/null) || {
-            echo "::error::Текущий коммит не имеет тега. Сборка отменена."
+            echo "::error::Current commit has no tag. Build cancelled."
             exit 1
           }
           echo "Releasing tag: $TAG"
@@ -58,7 +62,7 @@ jobs:
           EXT=""
           if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w -X main.version=${{ needs.check-tag.outputs.tag }}" \
-            -o dist/myapp-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} ./cmd/myapp
+            -o dist/${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} ${{ env.MAIN_PATH }}
 
       - uses: actions/upload-artifact@v4
         with:
