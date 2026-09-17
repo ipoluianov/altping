@@ -137,23 +137,19 @@ func (c *TopWidget) onBtnSaveAs() {
 }
 
 func (c *TopWidget) onBtnAddItem() {
-	/*dialog := ui.NewDialog("Edit Item", 480, 160)
-	dialogContent := NewEditItemDialog(nil, dialog.Accept, func() {
-		dialog.Reject()
-	})
-	dialog.ContentPanel().AddWidget(dialogContent, 0, 0)
-	dialog.OnAccept = func() {
-		hostConfig := dialogContent.GetHostConfig()
+	dialogContent := NewEditItemDialog(nil, func(hostConfig *config.ConfigHost) {
 		if hostConfig != nil {
 			hostConfig.ID = config.GenerateRandomID()
 			config.Get().AddHost(*hostConfig)
 			config.Get().Save()
 			lastCreatedLeftWidget.FullRestart()
-
 			lastCreatedLeftWidget.FocusTable()
 		}
-	}
-	dialog.ShowDialog()*/
+	}, func() {
+		lastCreatedLeftWidget.FocusTable()
+	})
+
+	c.ShowDialog(dialogContent)
 }
 
 func (c *TopWidget) onBtnEditItem() {

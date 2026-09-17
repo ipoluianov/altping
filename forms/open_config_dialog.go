@@ -96,6 +96,12 @@ func (c *OpenConfigDialog) RemoveSelectedConfig() {
 	ui.ShowQuestionMessageBoxOKCancel(c, "Remove config", "Remote selected config?", func() {
 		selectedConfigIndex := c.lvConfigs.CurrentRow()
 		selectedConfig := c.GetSelectedConfig()
+
+		if selectedConfig.ID == c.openedConfigId {
+			ui.ShowMessageBox(c, "Error", "Cannot remove the currently opened config.")
+			return
+		}
+
 		if selectedConfig != nil {
 			config.RemoveConfig(selectedConfig.ID)
 			c.LoadTable(selectedConfigIndex)
