@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: altping
-  MAIN_PATH: ./
+  APP_NAME: myapp
+  MAIN_PATH: ./cmd/myapp
 
 permissions:
   contents: write
@@ -59,10 +59,21 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          mkdir -p build
           EXT=""
           if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags="-s -w -X main.version=${{ needs.check-tag.outputs.tag }}" \
-            -o dist/${{ env.APP_NAME }}-${{ matrix.goos }}-${{ matrix.goarch }}${EXT} ${{ env.MAIN_PATH }}
+            -o build/${{ env.APP_NAME }}${EXT} ${{ env.MAIN_PATH }}
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          ARCHIVE_NAME=${{ env.APP_NAME }}-${{ needs.check-tag.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cd build && zip -r ../dist/${ARCHIVE_NAME}.zip . && cd ..
+          else
+            tar -czf dist/${ARCHIVE_NAME}.tar.gz -C build .
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
