@@ -42,8 +42,9 @@ func NewOpenConfigDialog(currentConfigId string, onAccept func(configId string),
 		c.Cancel()
 	})
 
-	c.panelButtons.AddWidget(0, 0, c.btnOK)
-	c.panelButtons.AddWidget(0, 1, c.btnCancel)
+	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
+	c.panelButtons.AddWidget(0, 1, c.btnOK)
+	c.panelButtons.AddWidget(0, 2, c.btnCancel)
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingCell(false)

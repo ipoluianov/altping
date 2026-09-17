@@ -32,37 +32,26 @@ func NewCreateConfigDialog(onAccept func(name string), onCancel func()) *CreateC
 	c.btnOK = ui.NewButton("OK")
 	c.onAccept = onAccept
 	c.onCancel = onCancel
-	c.btnOK.SetOnClick(func() {
-		c.Accept()
-	})
+	c.btnOK.SetOnClick(c.Accept)
 	c.btnCancel = ui.NewButton("Cancel")
-	c.btnCancel.SetOnClick(func() {
-		c.Cancel()
-	})
+	c.btnCancel.SetOnClick(c.Cancel)
 
-	c.panelButtons.AddWidget(0, 0, c.btnOK)
-	c.panelButtons.AddWidget(0, 1, c.btnCancel)
+	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
+	c.panelButtons.AddWidget(0, 1, c.btnOK)
+	c.panelButtons.AddWidget(0, 2, c.btnCancel)
 
 	c.txtName = ui.NewTextBox()
 	c.panelContent.AddWidget(0, 0, ui.NewLabel("Name:"))
 	c.panelContent.AddWidget(0, 1, c.txtName)
 
-	/*c.txtName.SetOnKeyDown(func(key nuikey.Key, mods nuikey.KeyModifiers) bool {
-		if key == nuikey.KeyEnter {
-			c.Accept()
-			return true
-		}
-		if key == nuikey.KeyEsc {
-			c.Cancel()
-			return true
-		}
-		return c.txtName.KeyDown(key, mods)
-	})*/
-
 	c.OnDialogShow = func() {
-		c.txtName.Focus()
+		c.Form().SetTitle("New Config")
+		c.Form().SetSize(400, 200)
+		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
+
+		c.txtName.Focus()
 	}
 
 	return &c
