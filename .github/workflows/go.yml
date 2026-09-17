@@ -61,8 +61,12 @@ jobs:
         run: |
           mkdir -p build
           EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
-          go build -ldflags="-s -w -X main.version=${{ needs.check-tag.outputs.tag }}" \
+          LDFLAGS="-s -w -X main.version=${{ needs.check-tag.outputs.tag }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+            LDFLAGS="${LDFLAGS} -H=windowsgui"
+          fi
+          go build -trimpath -ldflags="${LDFLAGS}" \
             -o build/${{ env.APP_NAME }}${EXT} ${{ env.MAIN_PATH }}
 
       - name: Package
