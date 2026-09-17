@@ -124,6 +124,16 @@ func CreateNewConfig(name string) (*Config, error) {
 	return config, nil
 }
 
+func RemoveConfig(id string) error {
+	configPath := ConfigDirectory()
+	fullPath := path.Join(configPath, id+".ws")
+	err := os.Remove(fullPath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func Configs() []*Config {
 	configPath := ConfigDirectory()
 	files, err := os.ReadDir(configPath)
