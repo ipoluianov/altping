@@ -153,7 +153,11 @@ func (c *TopWidget) onBtnAddItem() {
 }
 
 func (c *TopWidget) onBtnEditItem() {
-	selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
+	selectedHosts := lastCreatedLeftWidget.GetSelectedHostConfigs()
+	if len(selectedHosts) != 1 {
+		return
+	}
+	selectedHost := selectedHosts[0]
 	dialogContent := NewEditItemDialog(selectedHost, func(hostConfig *config.ConfigHost) {
 		if hostConfig != nil {
 			selectedHost.DisplayName = hostConfig.DisplayName
@@ -193,19 +197,21 @@ func (c *TopWidget) onBtnEditItem() {
 }
 
 func (c *TopWidget) onBtnRemoveItem() {
-	selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
-	if selectedHost == nil {
+	selectedHosts := lastCreatedLeftWidget.GetSelectedHostConfigs()
+	if len(selectedHosts) == 0 {
 		return
 	}
 
-	ui.ShowQuestionMessageBoxYesNo(c, "Remove item?", "Remove Selected Item?", func() {
+	ui.ShowQuestionMessageBoxYesNo(c, "Remove item?", "Remove Selected Items?", func() {
 		config := config.Get()
-		config.RemoveHost(selectedHost.ID)
+		for _, selectedHost := range selectedHosts {
+			config.RemoveHost(selectedHost.ID)
+		}
 		config.Save()
 		lastCreatedLeftWidget.FullRestart()
-
 		lastCreatedLeftWidget.FocusTable()
 	}, func() {
+		lastCreatedLeftWidget.FocusTable()
 	})
 }
 

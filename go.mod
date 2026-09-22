@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/u00io/nui v0.0.32
-	github.com/u00io/nuiforms v0.0.53
+	github.com/u00io/nuiforms v0.0.55
 	golang.org/x/net v0.58.0
 )
 
@@ -21,6 +21,6 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 )
 
-replace github.com/u00io/nui => ../nui
+// replace github.com/u00io/nui => ../nui
 
-replace github.com/u00io/nuiforms => ../nuiforms
+// replace github.com/u00io/nuiforms => ../nuiforms

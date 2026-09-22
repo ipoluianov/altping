@@ -25,8 +25,7 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 	//c.SetMinWidth(700)
 	//c.SetMaxWidth(700)
 
-	c.lvItems.SetSelectingRow(true)
-	c.lvItems.SetSelectingCell(false)
+	c.lvItems.SetSelectingRows(true)
 	c.lvItems.SetColumnCount(6)
 	c.lvItems.SetColumnWidth(0, 150)
 	c.lvItems.SetColumnWidth(1, 160)
@@ -40,6 +39,8 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 	c.lvItems.SetColumnName(3, "OK")
 	c.lvItems.SetColumnName(4, "ERR")
 	c.lvItems.SetColumnName(5, "Details")
+
+	c.lvItems.SetMultiselect(true)
 
 	c.loadHosts()
 
@@ -91,13 +92,19 @@ func (c *LeftWidget) loadHosts() {
 	}
 }
 
-func (c *LeftWidget) GetSelectedHostConfig() *config.ConfigHost {
-	row := c.lvItems.CurrentRow()
-	if row < 0 {
+func (c *LeftWidget) GetSelectedHostConfigs() []*config.ConfigHost {
+	selectedRows := c.lvItems.SelectedRows()
+	if len(selectedRows) == 0 {
 		return nil
 	}
-	host := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
-	return host
+	hosts := make([]*config.ConfigHost, 0, len(selectedRows))
+	for _, row := range selectedRows {
+		host := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
+		if host != nil {
+			hosts = append(hosts, host)
+		}
+	}
+	return hosts
 }
 
 func (c *LeftWidget) timerUpdate() {
