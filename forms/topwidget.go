@@ -153,6 +153,21 @@ func (c *TopWidget) onBtnAddItem() {
 }
 
 func (c *TopWidget) onBtnEditItem() {
+	selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
+	dialogContent := NewEditItemDialog(selectedHost, func(hostConfig *config.ConfigHost) {
+		if hostConfig != nil {
+			selectedHost.DisplayName = hostConfig.DisplayName
+			selectedHost.Hostname = hostConfig.Hostname
+			config.Get().Save()
+			lastCreatedLeftWidget.FullRestart()
+			lastCreatedLeftWidget.FocusTable()
+		}
+	}, func() {
+		lastCreatedLeftWidget.FocusTable()
+	})
+
+	c.ShowDialog(dialogContent)
+
 	/*selectedHost := lastCreatedLeftWidget.GetSelectedHostConfig()
 	if selectedHost == nil {
 		return
