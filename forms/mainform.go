@@ -19,22 +19,21 @@ func NewMainForm() *MainForm {
 	var c MainForm
 	c.InitWidget()
 	c.topWidget = NewTopWidget()
-	c.leftWidget = NewLeftWidget(c.SetMode)
+	c.leftWidget = NewLeftWidget()
 	c.centerWidget = NewCenterWidget()
 	c.bottomWidget = NewBottomWidget()
 
 	c.AddWidget(0, 0, c.topWidget)
 	c.panelCenter = ui.NewPanel()
+	c.panelCenter.SetPanelPadding(0)
 	c.panelCenter.AddWidget(0, 0, c.leftWidget)
 	c.panelCenter.AddWidget(0, 1, c.centerWidget)
 	c.AddWidget(1, 0, c.panelCenter)
 	c.AddWidget(2, 0, c.bottomWidget)
 	lastCreatedMainWidget = &c
-	return &c
-}
 
-func (c *MainForm) SetMode(mode string) {
-	//c.centerWidget.SetMode(mode)
+	c.SetPanelPadding(3)
+	return &c
 }
 
 func (c *MainForm) Activate() {

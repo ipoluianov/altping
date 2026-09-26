@@ -27,6 +27,7 @@ func NewBottomWidget() *BottomWidget {
 	c.AddWidget(0, 2, c.lblAbout)
 
 	c.AddTimer(1000, c.timerUpdate)
+
 	return &c
 }
 

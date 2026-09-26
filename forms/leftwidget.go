@@ -17,7 +17,7 @@ type LeftWidget struct {
 	lvItems *ui.Table
 }
 
-func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
+func NewLeftWidget() *LeftWidget {
 	var c LeftWidget
 	c.InitWidget()
 	c.lvItems = ui.NewTable()
@@ -49,6 +49,8 @@ func NewLeftWidget(onModeChanged func(mode string)) *LeftWidget {
 	lastCreatedLeftWidget = &c
 
 	c.lvItems.Focus()
+
+	c.SetPanelPadding(0)
 
 	return &c
 }
