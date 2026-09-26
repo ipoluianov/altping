@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installer for __APP__ __TAG__ (linux/amd64)
+# Installer for __DISPLAY_NAME__ __TAG__ (linux/amd64)
 # Usage: curl -fsSL https://github.com/__REPO__/releases/latest/download/linux-x64-install.sh | bash
 #
 # Layout (flat, shared by all utilities):
@@ -10,6 +10,7 @@
 set -euo pipefail
 
 APP="__APP__"
+DISPLAY_NAME="__DISPLAY_NAME__"
 TAG="__TAG__"
 REPO="__REPO__"
 URL="https://github.com/${REPO}/releases/download/${TAG}/${APP}-${TAG}-linux-amd64.tar.gz"
@@ -31,7 +32,7 @@ esac
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Downloading ${APP} ${TAG}..."
+echo "Downloading ${DISPLAY_NAME} ${TAG}..."
 if command -v curl >/dev/null 2>&1; then
   curl -fL --progress-bar -o "$TMP/app.tar.gz" "$URL"
 elif command -v wget >/dev/null 2>&1; then
@@ -71,20 +72,21 @@ done
 {
   echo '#!/usr/bin/env bash'
   printf 'APP=%q\n' "$APP"
+  printf 'DISPLAY_NAME=%q\n' "$DISPLAY_NAME"
   printf 'BIN_DIR=%q\n' "$BIN_DIR"
   printf 'APPS_DIR=%q\n' "$APPS_DIR"
   printf 'DESKTOP_FILE=%q\n' "$DESKTOP_FILE"
   cat <<'EOF'
 set -u
-MSG="Uninstall ${APP}?"
+MSG="Uninstall ${DISPLAY_NAME}?"
 
 if [ -t 0 ]; then
   read -r -p "$MSG [y/N] " ans
   [[ "$ans" =~ ^[Yy] ]] || exit 0
 elif command -v kdialog >/dev/null 2>&1; then
-  kdialog --title "$APP" --yesno "$MSG" || exit 0
+  kdialog --title "$DISPLAY_NAME" --yesno "$MSG" || exit 0
 elif command -v zenity >/dev/null 2>&1; then
-  zenity --question --title="$APP" --text="$MSG" || exit 0
+  zenity --question --title="$DISPLAY_NAME" --text="$MSG" || exit 0
 fi
 
 pkill -x "$APP" 2>/dev/null || true
@@ -107,9 +109,9 @@ command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$
 { kbuildsycoca6 || kbuildsycoca5; } >/dev/null 2>&1 || true
 
 if [ -t 1 ]; then
-  echo "${APP} has been removed."
+  echo "${DISPLAY_NAME} has been removed."
 else
-  command -v notify-send >/dev/null 2>&1 && notify-send "$APP" "${APP} has been removed."
+  command -v notify-send >/dev/null 2>&1 && notify-send "$DISPLAY_NAME" "${DISPLAY_NAME} has been removed."
 fi
 exit 0
 EOF
@@ -151,8 +153,8 @@ esc() { printf '%s' "$1" | sed -e 's/[\\"`$]/\\&/g'; }
 cat > "$DESKTOP_FILE" <<EOF
 [Desktop Entry]
 Type=Application
-Name=${APP}
-Comment=${APP} ${TAG}
+Name=${DISPLAY_NAME}
+Comment=${DISPLAY_NAME} ${TAG}
 Exec="$(esc "$BIN")"
 Icon=${ICON}
 Terminal=false
@@ -172,7 +174,7 @@ command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$
 { kbuildsycoca6 || kbuildsycoca5; } >/dev/null 2>&1 || true
 
 echo
-echo "Installed ${APP} ${TAG} to ${BIN}"
+echo "Installed ${DISPLAY_NAME} ${TAG} to ${BIN}"
 echo "Menu entry: ${DESKTOP_FILE}"
 echo "Uninstall:  ${UNINSTALL}  (or right-click the app in the menu -> Uninstall)"
 
