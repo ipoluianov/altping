@@ -1,6 +1,8 @@
 package forms
 
 import (
+	"net/url"
+
 	"github.com/ipoluianov/altping/app"
 	"github.com/u00io/nuiforms/ui"
 )
@@ -67,7 +69,13 @@ func NewAboutDialog() *AboutDialog {
 }
 
 func (c *AboutDialog) VisitWebsite() {
-	if err := app.OpenURL(app.Website); err != nil {
+	// UTM tags mark visits that came from the About dialog
+	q := url.Values{}
+	q.Set("utm_source", "altping")
+	q.Set("utm_medium", "app")
+	q.Set("utm_campaign", "about_dialog")
+	q.Set("utm_content", app.Version)
+	if err := app.OpenURL(app.Website + "?" + q.Encode()); err != nil {
 		ui.ShowMessageBox(c, "Error", err.Error())
 	}
 }
