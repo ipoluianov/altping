@@ -51,14 +51,13 @@ func GenerateRandomID() string {
 	return id
 }
 
+// ConfigDirectory returns ~/.altbins/.altping
 func ConfigDirectory() string {
-	localExePath := ""
-	localExePath, err := os.Executable()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		localExePath = "."
+		homeDir = "."
 	}
-	configPath := filepath.Join(filepath.Dir(localExePath), ".altping")
-	return configPath
+	return filepath.Join(homeDir, ".altbins", ".altping")
 }
 
 func loadDefaultConfig() {
