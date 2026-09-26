@@ -1,11 +1,20 @@
 package system
 
-import "github.com/ipoluianov/altping/config"
+import (
+	"sync"
+
+	"github.com/ipoluianov/altping/config"
+)
 
 type System struct {
 	pingServer  *PingServer
 	Hosts       []*Host
 	chanStopped chan struct{}
+
+	// Ping history by host ID. Hosts are recreated on every restart,
+	// so the history is kept here.
+	historyMtx sync.Mutex
+	history    map[string]*HostHistory
 }
 
 var systemInstance *System
@@ -17,6 +26,7 @@ func init() {
 func newSystem() *System {
 	var c System
 	c.pingServer = NewPingServer()
+	c.history = make(map[string]*HostHistory)
 	return &c
 }
 
@@ -80,12 +90,32 @@ func (c *System) GetHostLastState(id string) HostState {
 	return HostState{}
 }
 
+// GetHostHistory returns the ping history of the host (nil for an unknown host)
+func (c *System) GetHostHistory(id string) *HostHistory {
+	c.historyMtx.Lock()
+	defer c.historyMtx.Unlock()
+	return c.history[id]
+}
+
 func (c *System) UpdateConfig() {
 	config := config.Get()
 	c.Hosts = nil
+
+	c.historyMtx.Lock()
+	history := make(map[string]*HostHistory)
+	for _, hostConfig := range config.Hosts {
+		h, ok := c.history[hostConfig.ID]
+		if !ok {
+			h = NewHostHistory()
+		}
+		history[hostConfig.ID] = h
+	}
+	c.history = history
+	c.historyMtx.Unlock()
+
 	for _, hostConfig := range config.Hosts {
 		var host *Host
-		host = NewHost(hostConfig.ID, c.pingServer)
+		host = NewHost(hostConfig.ID, c.pingServer, history[hostConfig.ID])
 		c.Hosts = append(c.Hosts, host)
 		host.UpdateConfig()
 	}

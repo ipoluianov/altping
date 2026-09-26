@@ -10,6 +10,7 @@ type MainForm struct {
 	topWidget    *TopWidget
 	leftWidget   *LeftWidget
 	centerWidget *CenterWidget
+	details      *DetailsWidget
 	bottomWidget *BottomWidget
 }
 
@@ -28,12 +29,21 @@ func NewMainForm() *MainForm {
 	c.panelCenter.SetPanelPadding(0)
 	c.panelCenter.AddWidget(0, 0, c.leftWidget)
 	c.panelCenter.AddWidget(0, 1, c.centerWidget)
+	c.details = NewDetailsWidget()
+	c.details.SetVisible(false)
+	c.panelCenter.AddWidget(0, 2, c.details)
 	c.AddWidget(1, 0, c.panelCenter)
 	c.AddWidget(2, 0, c.bottomWidget)
 	lastCreatedMainWidget = &c
 
 	c.SetPanelPadding(3)
 	return &c
+}
+
+func (c *MainForm) ToggleDetails() {
+	c.details.SetVisible(!c.details.IsVisible())
+	c.Form().UpdateLayout()
+	c.Form().Update()
 }
 
 func (c *MainForm) Activate() {

@@ -43,6 +43,13 @@ func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 		return true
 	}
 
+	if key == nuikey.KeyD {
+		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // D
+			lastCreatedTopWidget.onBtnDetails()
+		}
+		return true
+	}
+
 	if key == nuikey.KeyDelete || key == nuikey.KeyBackspace {
 		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // Delete or Backspace
 			lastCreatedTopWidget.onBtnRemoveItem()

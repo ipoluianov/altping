@@ -154,7 +154,7 @@ func (c *PingServer) thReceive() {
 	c.mode = ""
 }
 
-func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanStop chan struct{}) (result int, peer net.Addr, err error) {
+func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanStop chan struct{}) (result time.Duration, peer net.Addr, err error) {
 	if frameSize < 8 || frameSize > 1400 {
 		err = errors.New("wrong data frame length")
 		return
@@ -289,7 +289,7 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanSto
 		return
 	}
 
-	result = int(req.RecvTime.Sub(req.SentTime).Milliseconds())
+	result = req.RecvTime.Sub(req.SentTime)
 	peer = req.ResultPeer
 	return
 }

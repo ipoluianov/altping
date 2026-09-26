@@ -17,6 +17,7 @@ type Host struct {
 	stopping bool
 
 	pingServer *PingServer
+	history    *HostHistory
 
 	config     *config.Config
 	configHost config.ConfigHost
@@ -48,10 +49,11 @@ type HostState struct {
 	StatIP     string
 }
 
-func NewHost(id string, pingServer *PingServer) *Host {
+func NewHost(id string, pingServer *PingServer, history *HostHistory) *Host {
 	var c Host
 	c.ID = id
 	c.pingServer = pingServer
+	c.history = history
 
 	c.defaultData = make(map[int][]byte)
 	for s := 0; s < 1500; s++ {
@@ -172,10 +174,30 @@ func (c *Host) updateState() {
 	c.SetState(state)
 }
 
+func (c *Host) addToHistory() {
+	// A ping interrupted by Stop is not a real result
+	select {
+	case <-c.chanStop:
+		return
+	default:
+	}
+
+	c.history.Add(HistorySample{
+		DT:       time.Now(),
+		PingTime: c.resultLastPingTime,
+		OK:       c.resultErr == nil,
+	})
+}
+
+func (c *Host) addGapToHistory() {
+	c.history.Add(HistorySample{DT: time.Now(), Gap: true})
+}
+
 func (c *Host) thWork() {
 	c.mtx.Lock()
 	c.started = true
 	c.mtx.Unlock()
+	c.addGapToHistory()
 
 	timeout := time.Duration(1000) * time.Millisecond
 
@@ -184,6 +206,7 @@ func (c *Host) thWork() {
 		select {
 		case <-time.After(timeout):
 		case <-c.chanStop:
+			c.addGapToHistory()
 			c.mtx.Lock()
 			c.started = false
 			c.mtx.Unlock()
@@ -199,7 +222,7 @@ func (c *Host) thWork() {
 
 		if c.checkIP() {
 			result, peer, err := c.pingServer.PingHost(c.IP, 64, 1000, c.chanStop)
-			c.resultLastPingTime = time.Duration(result) * time.Millisecond
+			c.resultLastPingTime = result
 
 			liveIP := ""
 
@@ -228,8 +251,10 @@ func (c *Host) thWork() {
 			c.mtx.Unlock()
 		}
 
+		c.addToHistory()
 		c.updateState()
 	}
+	c.addGapToHistory()
 	c.mtx.Lock()
 	c.started = false
 	c.mtx.Unlock()

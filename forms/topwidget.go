@@ -37,7 +37,7 @@ func NewTopWidget() *TopWidget {
 	c.btnEditItem = NewToolButton("edit", "Edit host (E)", c.onBtnEditItem)
 	c.btnRemoveItem = NewToolButton("remove", "Remove selected hosts (Del)", c.onBtnRemoveItem)
 
-	c.btnDetails = NewToolButton("details", "Details", c.onBtnDetails)
+	c.btnDetails = NewToolButton("details", "Details (D)", c.onBtnDetails)
 	c.btnStart = NewToolButton("start", "Start pinging", c.onBtnStart)
 	c.btnStop = NewToolButton("stop", "Stop pinging", c.onBtnStop)
 
@@ -211,6 +211,8 @@ func (c *TopWidget) onBtnRemoveItem() {
 }
 
 func (c *TopWidget) onBtnDetails() {
+	lastCreatedMainWidget.ToggleDetails()
+	lastCreatedLeftWidget.FocusTable()
 }
 
 func (c *TopWidget) onBtnStart() {
