@@ -90,10 +90,23 @@ jobs:
     needs: [check-tag, build]
     runs-on: ubuntu-latest
     steps:
+      # Needed to access scripts/linux-x64-install.sh.
+      # Must run BEFORE download-artifact, otherwise checkout wipes dist/
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+
+      # Fill in app name, tag and repo in the installer template
+      - name: Generate Linux installer
+        run: |
+          sed -e "s|__APP__|${{ env.APP_NAME }}|g" \
+              -e "s|__TAG__|${{ needs.check-tag.outputs.tag }}|g" \
+              -e "s|__REPO__|${{ github.repository }}|g" \
+              scripts/linux-x64-install.sh > dist/linux-x64-install.sh
+          chmod +x dist/linux-x64-install.sh
 
       - uses: softprops/action-gh-release@v2
         with:
