@@ -23,4 +23,4 @@ require (
 
 // replace github.com/u00io/nui => ../nui
 
-// replace github.com/u00io/nuiforms => ../nuiforms
+replace github.com/u00io/nuiforms => ../nuiforms

@@ -19,7 +19,7 @@ type ToolButton struct {
 	enabled     bool
 }
 
-func NewToolButton(iconName string, onClick func()) *ToolButton {
+func NewToolButton(iconName string, tooltip string, onClick func()) *ToolButton {
 	var c ToolButton
 	c.img = loadIcon(iconName)
 	c.imgDisabled = disabledIcon(c.img)
@@ -27,6 +27,7 @@ func NewToolButton(iconName string, onClick func()) *ToolButton {
 	c.ButtonImage = ui.NewButtonImage(c.img)
 	c.SetMinSize(toolButtonSize, toolButtonSize)
 	c.SetMaxSize(toolButtonSize, toolButtonSize)
+	c.SetTooltip(tooltip)
 	c.SetOnButtonClick(func(btn *ui.ButtonImage) {
 		if c.enabled && onClick != nil {
 			onClick()

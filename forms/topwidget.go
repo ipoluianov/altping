@@ -29,21 +29,25 @@ func NewTopWidget() *TopWidget {
 	c.InitWidget()
 	c.SetPanelPadding(6)
 
-	c.btnNew = NewToolButton("new", c.onBtnNew)
-	c.btnOpen = NewToolButton("open", c.onBtnOpen)
-	c.btnSaveAs = NewToolButton("saveas", c.onBtnSaveAs)
+	c.btnNew = NewToolButton("new", "New configuration (N)", c.onBtnNew)
+	c.btnOpen = NewToolButton("open", "Open configuration (O)", c.onBtnOpen)
+	c.btnSaveAs = NewToolButton("saveas", "Save configuration as (S)", c.onBtnSaveAs)
 
-	c.btnAddItem = NewToolButton("add", c.onBtnAddItem)
-	c.btnEditItem = NewToolButton("edit", c.onBtnEditItem)
-	c.btnRemoveItem = NewToolButton("remove", c.onBtnRemoveItem)
+	c.btnAddItem = NewToolButton("add", "Add host (A)", c.onBtnAddItem)
+	c.btnEditItem = NewToolButton("edit", "Edit host (E)", c.onBtnEditItem)
+	c.btnRemoveItem = NewToolButton("remove", "Remove selected hosts (Del)", c.onBtnRemoveItem)
 
-	c.btnDetails = NewToolButton("details", c.onBtnDetails)
-	c.btnStart = NewToolButton("start", c.onBtnStart)
-	c.btnStop = NewToolButton("stop", c.onBtnStop)
+	c.btnDetails = NewToolButton("details", "Details", c.onBtnDetails)
+	c.btnStart = NewToolButton("start", "Start pinging", c.onBtnStart)
+	c.btnStop = NewToolButton("stop", "Stop pinging", c.onBtnStop)
 
 	c.AddWidget(0, 0, c.btnNew)
 	c.AddWidget(0, 1, c.btnOpen)
 	c.AddWidget(0, 2, c.btnSaveAs)
+
+	groupSpace := ui.NewSpace()
+	groupSpace.SetSize(16, 0)
+	c.AddWidget(0, 3, groupSpace)
 
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
