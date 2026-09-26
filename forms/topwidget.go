@@ -9,17 +9,17 @@ import (
 type TopWidget struct {
 	ui.Widget
 
-	btnNew    *ui.Button
-	btnOpen   *ui.Button
-	btnSaveAs *ui.Button
+	btnNew    *ToolButton
+	btnOpen   *ToolButton
+	btnSaveAs *ToolButton
 
-	btnAddItem    *ui.Button
-	btnEditItem   *ui.Button
-	btnRemoveItem *ui.Button
+	btnAddItem    *ToolButton
+	btnEditItem   *ToolButton
+	btnRemoveItem *ToolButton
 
-	btnDetails *ui.Button
-	btnStart   *ui.Button
-	btnStop    *ui.Button
+	btnDetails *ToolButton
+	btnStart   *ToolButton
+	btnStop    *ToolButton
 }
 
 var lastCreatedTopWidget *TopWidget
@@ -29,26 +29,17 @@ func NewTopWidget() *TopWidget {
 	c.InitWidget()
 	c.SetPanelPadding(6)
 
-	c.btnNew = ui.NewButton("New")
-	c.btnNew.SetOnClick(c.onBtnNew)
-	c.btnOpen = ui.NewButton("Open")
-	c.btnOpen.SetOnClick(c.onBtnOpen)
-	c.btnSaveAs = ui.NewButton("Save As")
-	c.btnSaveAs.SetOnClick(c.onBtnSaveAs)
+	c.btnNew = NewToolButton("new", c.onBtnNew)
+	c.btnOpen = NewToolButton("open", c.onBtnOpen)
+	c.btnSaveAs = NewToolButton("saveas", c.onBtnSaveAs)
 
-	c.btnAddItem = ui.NewButton("Add")
-	c.btnAddItem.SetOnClick(c.onBtnAddItem)
-	c.btnEditItem = ui.NewButton("Edit")
-	c.btnEditItem.SetOnClick(c.onBtnEditItem)
-	c.btnRemoveItem = ui.NewButton("Remove")
-	c.btnRemoveItem.SetOnClick(c.onBtnRemoveItem)
+	c.btnAddItem = NewToolButton("add", c.onBtnAddItem)
+	c.btnEditItem = NewToolButton("edit", c.onBtnEditItem)
+	c.btnRemoveItem = NewToolButton("remove", c.onBtnRemoveItem)
 
-	c.btnDetails = ui.NewButton("Details")
-	c.btnDetails.SetOnClick(c.onBtnDetails)
-	c.btnStart = ui.NewButton("Start")
-	c.btnStart.SetOnClick(c.onBtnStart)
-	c.btnStop = ui.NewButton("Stop")
-	c.btnStop.SetOnClick(c.onBtnStop)
+	c.btnDetails = NewToolButton("details", c.onBtnDetails)
+	c.btnStart = NewToolButton("start", c.onBtnStart)
+	c.btnStop = NewToolButton("stop", c.onBtnStop)
 
 	c.AddWidget(0, 0, c.btnNew)
 	c.AddWidget(0, 1, c.btnOpen)
