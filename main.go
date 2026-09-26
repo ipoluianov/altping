@@ -9,6 +9,7 @@ import (
 
 func main() {
 	config.Init()
+	ui.SetAppIcon(appIcon())
 	form := ui.NewForm()
 	form.SetTitle("Alt Ping")
 	form.SetSize(1100, 800)
