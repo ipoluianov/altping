@@ -78,6 +78,10 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then
             cd build && zip -r ../dist/${ARCHIVE_NAME}.zip . && cd ..
           else
+            # Linux installer picks up <app>.svg from the archive as the menu icon
+            if [ "${{ matrix.goos }}" = "linux" ]; then
+              cp icon.svg build/${{ env.APP_NAME }}.svg
+            fi
             tar -czf dist/${ARCHIVE_NAME}.tar.gz -C build .
           fi
 
