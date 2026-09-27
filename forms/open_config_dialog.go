@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	"github.com/ipoluianov/altping/config"
-	"github.com/u00io/nui/nuikey"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 type OpenConfigDialog struct {
@@ -80,8 +79,8 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 
 	c.lvConfigs.SetOnCellMouseDblClick(c.onConfigDoubleClick)
 
-	c.lvConfigs.SetOnKeyDown(func(key nuikey.Key, mods nuikey.KeyModifiers) bool {
-		if key == nuikey.KeyDelete {
+	c.lvConfigs.SetOnKeyDown(func(key ui.Key, mods ui.KeyModifiers) bool {
+		if key == ui.KeyDelete {
 			c.RemoveSelectedConfig()
 			return true
 		}

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ipoluianov/altping/config"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 type EditItemDialog struct {

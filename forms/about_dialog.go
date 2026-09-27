@@ -2,7 +2,7 @@ package forms
 
 import (
 	"github.com/ipoluianov/altping/app"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 type AboutDialog struct {

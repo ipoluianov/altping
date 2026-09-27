@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 // Hosts shown on the chart at once, one area per host

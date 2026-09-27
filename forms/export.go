@@ -11,8 +11,7 @@ import (
 
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
-	"github.com/u00io/nui/nui"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 // exportHistory saves the last day of pings of the hosts to a CSV file the user chooses
@@ -27,10 +26,10 @@ func exportHistory(hosts []*config.ConfigHost) {
 	name += "-" + time.Now().Format("20060102-1504") + ".csv"
 
 	form := lastCreatedMainWidget.Form()
-	opts := nui.SaveFileDialogOptions{
+	opts := ui.SaveFileDialogOptions{
 		Title:           "Export history",
 		DefaultFileName: name,
-		Filters:         []nui.FileDialogFilter{{DisplayName: "CSV files", Patterns: []string{"*.csv"}}},
+		Filters:         []ui.FileDialogFilter{{DisplayName: "CSV files", Patterns: []string{"*.csv"}}},
 	}
 	// The system dialog is a separate window: it would open below a window kept on top
 	onTop := config.GetSettings().AlwaysOnTop
@@ -42,7 +41,7 @@ func exportHistory(hosts []*config.ConfigHost) {
 			form.SetAlwaysOnTop(true)
 		}
 		// No system dialog (e.g. Linux without zenity or kdialog): save to the home folder
-		noDialog := errors.Is(err, nui.ErrNoFileDialog)
+		noDialog := errors.Is(err, ui.ErrNoFileDialog)
 		if err != nil && !noDialog {
 			ui.ShowMessageBox(lastCreatedMainWidget, "Error", err.Error())
 			return

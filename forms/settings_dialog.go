@@ -2,7 +2,7 @@ package forms
 
 import (
 	"github.com/ipoluianov/altping/config"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 // SettingsDialog edits the application options (config.Settings)

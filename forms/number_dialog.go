@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 // NumberDialog asks for one whole number, e.g. a port or a time in ms

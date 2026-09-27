@@ -5,9 +5,7 @@ import (
 
 	"github.com/ipoluianov/altping/app"
 	"github.com/ipoluianov/altping/system"
-	"github.com/u00io/nui/nuikey"
-	"github.com/u00io/nui/nuimouse"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 type BottomWidget struct {
@@ -47,9 +45,9 @@ func newLinkLabel(text string, onClick func()) *ui.Label {
 	lbl := ui.NewLabel(text)
 	lbl.SetUnderline(true)
 	lbl.SetForegroundColor(color.RGBA{0x3D, 0x8B, 0xF2, 0xFF})
-	lbl.SetMouseCursor(nuimouse.MouseCursorPointer)
-	lbl.SetOnMouseDown(func(button nuimouse.MouseButton, x int, y int, mods nuikey.KeyModifiers) bool {
-		if button != nuimouse.MouseButtonLeft {
+	lbl.SetMouseCursor(ui.MouseCursorPointer)
+	lbl.SetOnMouseDown(func(button ui.MouseButton, x int, y int, mods ui.KeyModifiers) bool {
+		if button != ui.MouseButtonLeft {
 			return false
 		}
 		onClick()

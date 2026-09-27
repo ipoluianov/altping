@@ -13,7 +13,7 @@ import (
 
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
-	"github.com/u00io/nuiforms/ui"
+	"github.com/ipoluianov/nui/ui"
 )
 
 var lastCreatedLeftWidget *LeftWidget
