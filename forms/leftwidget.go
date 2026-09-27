@@ -48,6 +48,8 @@ type LeftWidget struct {
 	ui.Widget
 
 	lvItems *ui.Table
+	// Shown instead of the table while there are no hosts
+	emptyHint *ui.Panel
 
 	// Column the rows are sorted by (-1 - config order). The rows are sorted
 	// when a header is clicked, not on every update, so they do not jump around.
@@ -60,6 +62,9 @@ func NewLeftWidget() *LeftWidget {
 	c.InitWidget()
 	c.lvItems = ui.NewTable()
 	c.AddWidget(0, 0, c.lvItems)
+	c.emptyHint = newEmptyHint()
+	c.emptyHint.SetVisible(false)
+	c.AddWidget(1, 0, c.emptyHint)
 	//c.SetMinWidth(700)
 	//c.SetMaxWidth(700)
 
@@ -157,6 +162,37 @@ func (c *LeftWidget) loadHosts() {
 		c.lvItems.SetCellData2(i, 0, host)
 		c.lvItems.SetCellText2(i, 0, hostDisplayName(host))
 	}
+
+	empty := len(hosts) == 0
+	if c.emptyHint.IsVisible() != empty {
+		c.lvItems.SetVisible(!empty)
+		c.emptyHint.SetVisible(empty)
+		if c.Form() != nil {
+			c.Form().UpdateLayout()
+		}
+	}
+}
+
+// newEmptyHint tells what to do with an empty list and links to the docs
+func newEmptyHint() *ui.Panel {
+	p := ui.NewPanel()
+	// The same darker area as the table, so the empty list does not look like a gap
+	p.SetAutoFillBackground(true)
+	p.SetElevation(-3)
+	p.AddWidget(0, 0, ui.NewVSpacer())
+	for i, text := range []string{"No hosts yet", "Press A to add a host"} {
+		lbl := ui.NewLabel(text)
+		lbl.SetTextAlign(ui.HAlignCenter)
+		lbl.SetXExpandable(true)
+		p.AddWidget(i+1, 0, lbl)
+	}
+	linkRow := ui.NewPanel()
+	linkRow.AddWidget(0, 0, ui.NewHSpacer())
+	linkRow.AddWidget(0, 1, newLinkLabel("How it works", func() { openDocs(p, "empty_list") }))
+	linkRow.AddWidget(0, 2, ui.NewHSpacer())
+	p.AddWidget(3, 0, linkRow)
+	p.AddWidget(4, 0, ui.NewVSpacer())
+	return p
 }
 
 // onColumnClick sorts by the column; a second click reverses the order

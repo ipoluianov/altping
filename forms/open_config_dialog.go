@@ -138,7 +138,7 @@ func (c *OpenConfigDialog) SaveOpenedConfigAs() {
 }
 
 func (c *OpenConfigDialog) RemoveSelectedConfig() {
-	ui.ShowQuestionMessageBoxOKCancel(c, "Remove config", "Remote selected config?", func() {
+	ui.ShowQuestionMessageBoxOKCancel(c, "Remove config", "Remove the selected config?", func() {
 		selectedConfigIndex := c.lvConfigs.CurrentRow()
 		selectedConfig := c.GetSelectedConfig()
 
@@ -194,12 +194,8 @@ func (c *OpenConfigDialog) LoadTableSelectID(id string) {
 }
 
 func (c *OpenConfigDialog) GetSelectedConfig() *config.Config {
-	row := c.lvConfigs.CurrentRow()
-	if row < 0 {
-		return nil
-	}
-	config := c.lvConfigs.GetCellData2(row, 0).(*config.Config)
-	return config
+	cfg, _ := c.lvConfigs.GetCellData2(c.lvConfigs.CurrentRow(), 0).(*config.Config)
+	return cfg
 }
 
 func (c *OpenConfigDialog) onConfigDoubleClick() {
@@ -207,18 +203,15 @@ func (c *OpenConfigDialog) onConfigDoubleClick() {
 }
 
 func (c *OpenConfigDialog) Accept() {
-	if c.onAccept != nil {
-		selectedConfig := c.GetSelectedConfig()
-		if selectedConfig != nil {
-			c.onAccept(selectedConfig.ID)
-		}
+	// The callbacks change the window below: they run on its goroutine
+	if selectedConfig := c.GetSelectedConfig(); selectedConfig != nil && c.onAccept != nil {
+		id := selectedConfig.ID
+		c.RunInParent(func() { c.onAccept(id) })
 	}
 	c.Form().Close()
 }
 
 func (c *OpenConfigDialog) Cancel() {
-	if c.onCancel != nil {
-		c.onCancel()
-	}
+	c.RunInParent(c.onCancel)
 	c.Form().Close()
 }

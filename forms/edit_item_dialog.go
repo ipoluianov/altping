@@ -88,15 +88,15 @@ func (c *EditItemDialog) GetHostConfig() *config.ConfigHost {
 }
 
 func (c *EditItemDialog) Accept() {
+	// The callbacks change the window below: they run on its goroutine
 	if c.onAccept != nil {
-		c.onAccept(c.GetHostConfig())
+		hostConfig := c.GetHostConfig()
+		c.RunInParent(func() { c.onAccept(hostConfig) })
 	}
 	c.Form().Close()
 }
 
 func (c *EditItemDialog) Reject() {
-	if c.onCancel != nil {
-		c.onCancel()
-	}
+	c.RunInParent(c.onCancel)
 	c.Form().Close()
 }

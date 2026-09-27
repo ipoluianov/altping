@@ -22,10 +22,13 @@ func main() {
 	system.Get().Start()
 	form.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
 	form.Show()
-	if maximized {
-		form.Maximize()
-	}
-	mainForm.Activate()
+	// The form is handled by its own goroutine once shown
+	form.Invoke(func() {
+		if maximized {
+			form.Maximize()
+		}
+		mainForm.Activate()
+	})
 	form.Exec()
 	system.Get().Stop()
 }

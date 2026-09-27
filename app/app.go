@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"net/url"
 	"os/exec"
 	"runtime"
 	"time"
@@ -10,6 +11,7 @@ import (
 const (
 	DisplayName = "AltPing"
 	Website     = "https://altbins.pro/altping/"
+	DocsURL     = Website + "docs/"
 	Author      = "Ivan Poluianov"
 	License     = "MIT"
 
@@ -27,6 +29,17 @@ func Copyright() string {
 		years = fmt.Sprintf("%d-%d", copyrightStartYear, y)
 	}
 	return "Copyright © " + years + " " + Author
+}
+
+// OpenSiteURL opens a page of the site; the UTM tags tell which place
+// in the app the visit came from (campaign)
+func OpenSiteURL(pageURL string, campaign string) error {
+	q := url.Values{}
+	q.Set("utm_source", "altping")
+	q.Set("utm_medium", "app")
+	q.Set("utm_campaign", campaign)
+	q.Set("utm_content", Version)
+	return OpenURL(pageURL + "?" + q.Encode())
 }
 
 // OpenURL opens the url in the default browser

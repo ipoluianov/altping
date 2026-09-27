@@ -3,6 +3,7 @@ package forms
 import (
 	"image/color"
 
+	"github.com/ipoluianov/altping/app"
 	"github.com/ipoluianov/altping/system"
 	"github.com/u00io/nui/nuikey"
 	"github.com/u00io/nui/nuimouse"
@@ -13,6 +14,7 @@ type BottomWidget struct {
 	ui.Widget
 
 	lblStatus *ui.Label
+	lblHelp   *ui.Label
 	lblAbout  *ui.Label
 }
 
@@ -23,8 +25,13 @@ func NewBottomWidget() *BottomWidget {
 	c.lblStatus = ui.NewLabel("---")
 	c.AddWidget(0, 0, c.lblStatus)
 	c.AddWidget(0, 1, ui.NewHSpacer())
+	c.lblHelp = newLinkLabel("Help", func() { openDocs(&c, "help") })
+	c.AddWidget(0, 2, c.lblHelp)
+	linksSpace := ui.NewSpace()
+	linksSpace.SetSize(12, 0)
+	c.AddWidget(0, 3, linksSpace)
 	c.lblAbout = newLinkLabel("About", c.onAbout)
-	c.AddWidget(0, 2, c.lblAbout)
+	c.AddWidget(0, 4, c.lblAbout)
 
 	c.AddTimer(1000, c.timerUpdate)
 
@@ -45,6 +52,13 @@ func newLinkLabel(text string, onClick func()) *ui.Label {
 		return true
 	})
 	return lbl
+}
+
+// openDocs opens the docs on the site; campaign tells which place in the app the visit came from
+func openDocs(parent ui.Widgeter, campaign string) {
+	if err := app.OpenSiteURL(app.DocsURL, campaign); err != nil {
+		ui.ShowMessageBox(parent, "Error", err.Error())
+	}
 }
 
 func (c *BottomWidget) onAbout() {

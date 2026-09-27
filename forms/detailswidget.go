@@ -49,6 +49,8 @@ func NewDetailsWidget() *DetailsWidget {
 	header.SetPanelPadding(0)
 	c.AddWidget(0, 0, header)
 	c.lblTitle = header.AddLabel(0, 0, "")
+	// Differs from any selection, so the first check builds the chart (and the title for no selection)
+	c.shownHostIDs = "-"
 	c.lblTitle.SetXExpandable(true)
 	for i, p := range detailsPeriods {
 		btn := ui.NewButton(p.name)
@@ -138,7 +140,7 @@ func (c *DetailsWidget) rebuildChart(hosts []*config.ConfigHost) {
 	c.chart.RemoveAllAreas()
 
 	if len(hosts) == 0 {
-		c.lblTitle.SetText("Select a host to see its ping history")
+		c.lblTitle.SetText("Select a host")
 		return
 	}
 

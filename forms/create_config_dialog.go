@@ -63,15 +63,15 @@ func NewCreateConfigDialog(title string, name string, onAccept func(name string)
 }
 
 func (c *CreateConfigDialog) Accept() {
+	// The callbacks change the window below: they run on its goroutine
 	if c.onAccept != nil {
-		c.onAccept(c.txtName.Text())
+		name := c.txtName.Text()
+		c.RunInParent(func() { c.onAccept(name) })
 	}
 	c.Form().Close()
 }
 
 func (c *CreateConfigDialog) Cancel() {
-	if c.onCancel != nil {
-		c.onCancel()
-	}
+	c.RunInParent(c.onCancel)
 	c.Form().Close()
 }

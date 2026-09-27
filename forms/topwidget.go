@@ -74,7 +74,16 @@ func (c *TopWidget) timerUpdate() {
 		c.btnStart.SetEnabled(true)
 		c.btnStop.SetEnabled(false)
 	}
+
+	// An empty config: point to the first thing to do
+	if len(config.Get().Hosts) == 0 {
+		c.btnAddItem.SetHighlight(addHighlightColor)
+	} else {
+		c.btnAddItem.SetHighlight(nil)
+	}
 }
+
+var addHighlightColor = ui.ColorFromHex("#3fb950")
 
 func (c *TopWidget) onBtnOpen() {
 	currentConfigId := config.Get().ID

@@ -18,6 +18,8 @@ func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
 		lastCreatedTopWidget.onBtnAddItem()
 	case (key == nuikey.KeyE || key == nuikey.KeyEnter) && noMods:
 		lastCreatedTopWidget.onBtnEditItem()
+	case key == nuikey.KeyF1 && noMods:
+		openDocs(lastCreatedMainWidget, "help_f1")
 	case key == nuikey.KeyD && noMods:
 		lastCreatedTopWidget.onBtnDetails()
 	case (key == nuikey.KeyDelete || key == nuikey.KeyBackspace) && noMods:
