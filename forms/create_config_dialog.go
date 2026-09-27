@@ -8,6 +8,7 @@ type CreateConfigDialog struct {
 	ui.DialogContent
 
 	txtName *ui.TextBox
+	title   string
 
 	btnOK     *ui.Button
 	btnCancel *ui.Button
@@ -19,9 +20,11 @@ type CreateConfigDialog struct {
 	onCancel func()
 }
 
-func NewCreateConfigDialog(onAccept func(name string), onCancel func()) *CreateConfigDialog {
+// NewCreateConfigDialog asks for a config name, initially set to name
+func NewCreateConfigDialog(title string, name string, onAccept func(name string), onCancel func()) *CreateConfigDialog {
 	var c CreateConfigDialog
 	c.InitWidget()
+	c.title = title
 
 	c.panelContent = ui.NewPanel()
 	c.AddWidget(0, 0, c.panelContent)
@@ -41,17 +44,19 @@ func NewCreateConfigDialog(onAccept func(name string), onCancel func()) *CreateC
 	c.panelButtons.AddWidget(0, 2, c.btnCancel)
 
 	c.txtName = ui.NewTextBox()
+	c.txtName.SetText(name)
 	c.panelContent.AddWidget(0, 0, ui.NewLabel("Name:"))
 	c.panelContent.AddWidget(0, 1, c.txtName)
 
 	c.OnDialogShow = func() {
-		c.Form().SetTitle("New Config")
+		c.Form().SetTitle(c.title)
 		c.Form().SetSize(400, 200)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
 
 		c.txtName.Focus()
+		c.txtName.SelectAllText()
 	}
 
 	return &c

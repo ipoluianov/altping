@@ -9,9 +9,7 @@ import (
 type TopWidget struct {
 	ui.Widget
 
-	btnNew    *ToolButton
-	btnOpen   *ToolButton
-	btnSaveAs *ToolButton
+	btnOpen *ToolButton
 
 	btnAddItem    *ToolButton
 	btnEditItem   *ToolButton
@@ -27,27 +25,20 @@ var lastCreatedTopWidget *TopWidget
 func NewTopWidget() *TopWidget {
 	var c TopWidget
 	c.InitWidget()
-	c.SetPanelPadding(6)
+	c.SetPanelPadding(0)
 
-	c.btnNew = NewToolButton("new", "New configuration (N)", c.onBtnNew)
-	c.btnOpen = NewToolButton("open", "Open configuration (O)", c.onBtnOpen)
-	c.btnSaveAs = NewToolButton("saveas", "Save configuration as (S)", c.onBtnSaveAs)
+	c.btnOpen = NewToolButton("open", "Configurations (O)", c.onBtnOpen)
 
 	c.btnAddItem = NewToolButton("add", "Add host (A)", c.onBtnAddItem)
+	// The main action: twice as wide as the other buttons
+	c.btnAddItem.SetMinSize(toolButtonSize*2, toolButtonSize)
+	c.btnAddItem.SetMaxSize(toolButtonSize*2, toolButtonSize)
 	c.btnEditItem = NewToolButton("edit", "Edit host (E)", c.onBtnEditItem)
 	c.btnRemoveItem = NewToolButton("remove", "Remove selected hosts (Del)", c.onBtnRemoveItem)
 
 	c.btnDetails = NewToolButton("details", "Details (D)", c.onBtnDetails)
 	c.btnStart = NewToolButton("start", "Start pinging", c.onBtnStart)
 	c.btnStop = NewToolButton("stop", "Stop pinging", c.onBtnStop)
-
-	c.AddWidget(0, 0, c.btnNew)
-	c.AddWidget(0, 1, c.btnOpen)
-	c.AddWidget(0, 2, c.btnSaveAs)
-
-	groupSpace := ui.NewSpace()
-	groupSpace.SetSize(16, 0)
-	c.AddWidget(0, 3, groupSpace)
 
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
@@ -58,6 +49,12 @@ func NewTopWidget() *TopWidget {
 	c.AddWidget(0, 11, c.btnDetails)
 	c.AddWidget(0, 12, c.btnStart)
 	c.AddWidget(0, 13, c.btnStop)
+
+	groupSpace := ui.NewSpace()
+	groupSpace.SetSize(16, 0)
+	c.AddWidget(0, 14, groupSpace)
+
+	c.AddWidget(0, 15, c.btnOpen)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -74,34 +71,6 @@ func (c *TopWidget) timerUpdate() {
 		c.btnStart.SetEnabled(true)
 		c.btnStop.SetEnabled(false)
 	}
-}
-
-func (c *TopWidget) onBtnNew() {
-	dialog := NewCreateConfigDialog(func(configName string) {
-		if configName != "" {
-			cfg, err := config.CreateNewConfig(configName)
-			if err != nil {
-				ui.ShowMessageBox(c, "Error", err.Error())
-				return
-			}
-			system.Get().Stop()
-			err = config.LoadConfig(cfg.ID)
-			if err != nil {
-				ui.ShowMessageBox(c, "Error", err.Error())
-				system.Get().Start()
-				return
-			}
-			lastCreatedLeftWidget.FullRestart()
-			system.Get().Start()
-
-			lastCreatedLeftWidget.FocusTable()
-
-		}
-	}, func() {
-		// onCancel callback
-	})
-
-	c.ShowDialog(dialog)
 }
 
 func (c *TopWidget) onBtnOpen() {
@@ -126,9 +95,6 @@ func (c *TopWidget) onBtnOpen() {
 	})
 
 	c.ShowDialog(dialogContent)
-}
-
-func (c *TopWidget) onBtnSaveAs() {
 }
 
 func (c *TopWidget) onBtnAddItem() {
@@ -212,6 +178,7 @@ func (c *TopWidget) onBtnRemoveItem() {
 
 func (c *TopWidget) onBtnDetails() {
 	lastCreatedMainWidget.ToggleDetails()
+	c.btnDetails.SetChecked(lastCreatedMainWidget.IsDetailsVisible())
 	lastCreatedLeftWidget.FocusTable()
 }
 

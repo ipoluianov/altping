@@ -123,6 +123,22 @@ func CreateNewConfig(name string) (*Config, error) {
 	return config, nil
 }
 
+// CopyConfig saves a copy of the config under a new name.
+// The hosts get new IDs, so the copy has its own ping history.
+func CopyConfig(src *Config, name string) (*Config, error) {
+	config, err := CreateNewConfig(name)
+	if err != nil {
+		return config, err
+	}
+	for _, host := range src.Hosts {
+		h := *host
+		h.ID = GenerateRandomID()
+		config.Hosts = append(config.Hosts, &h)
+	}
+	err = config.Save()
+	return config, err
+}
+
 func RemoveConfig(id string) error {
 	configPath := ConfigDirectory()
 	fullPath := path.Join(configPath, id+".ws")

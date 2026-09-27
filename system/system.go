@@ -15,6 +15,8 @@ type System struct {
 	// so the history is kept here.
 	historyMtx sync.Mutex
 	history    map[string]*HostHistory
+
+	historyCleanup sync.Once
 }
 
 var systemInstance *System
@@ -101,14 +103,21 @@ func (c *System) UpdateConfig() {
 	config := config.Get()
 	c.Hosts = nil
 
+	c.historyCleanup.Do(removeStaleHistoryFiles)
+
 	c.historyMtx.Lock()
 	history := make(map[string]*HostHistory)
 	for _, hostConfig := range config.Hosts {
 		h, ok := c.history[hostConfig.ID]
 		if !ok {
-			h = NewHostHistory()
+			h = NewHostHistory(hostConfig.ID)
 		}
 		history[hostConfig.ID] = h
+	}
+	for id, h := range c.history {
+		if _, ok := history[id]; !ok {
+			h.Close()
+		}
 	}
 	c.history = history
 	c.historyMtx.Unlock()

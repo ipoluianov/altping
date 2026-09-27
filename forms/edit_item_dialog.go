@@ -36,8 +36,9 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 
 	c.panelContent = ui.NewPanel()
 	c.AddWidget(0, 0, c.panelContent)
+	c.AddWidget(1, 0, ui.NewVSpacer())
 	c.panelButtons = ui.NewPanel()
-	c.AddWidget(1, 0, c.panelButtons)
+	c.AddWidget(2, 0, c.panelButtons)
 
 	c.btnOK = ui.NewButton("OK")
 	c.onAccept = onAccept
@@ -46,8 +47,9 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.btnCancel = ui.NewButton("Cancel")
 	c.btnCancel.SetOnClick(c.Reject)
 
-	c.panelButtons.AddWidget(0, 0, c.btnOK)
-	c.panelButtons.AddWidget(0, 1, c.btnCancel)
+	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
+	c.panelButtons.AddWidget(0, 1, c.btnOK)
+	c.panelButtons.AddWidget(0, 2, c.btnCancel)
 
 	c.lblName = ui.NewLabel("Name:")
 	c.txtName = ui.NewTextBox()

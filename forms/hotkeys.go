@@ -8,23 +8,9 @@ import (
 )
 
 func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
-	if key == nuikey.KeyN {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
-			lastCreatedTopWidget.onBtnNew()
-		}
-		return true
-	}
-
 	if key == nuikey.KeyO {
 		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // O
 			lastCreatedTopWidget.onBtnOpen()
-		}
-		return true
-	}
-
-	if key == nuikey.KeyS {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // S
-			lastCreatedTopWidget.onBtnSaveAs()
 		}
 		return true
 	}

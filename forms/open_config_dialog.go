@@ -14,6 +14,8 @@ type OpenConfigDialog struct {
 
 	lvConfigs *ui.Table
 
+	btnNew    *ui.Button
+	btnSaveAs *ui.Button
 	btnRemove *ui.Button
 	btnOK     *ui.Button
 	btnCancel *ui.Button
@@ -38,6 +40,10 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 	c.panelButtons = ui.NewPanel()
 	c.AddWidget(1, 0, c.panelButtons)
 
+	c.btnNew = ui.NewButton("New...")
+	c.btnNew.SetOnClick(c.CreateConfig)
+	c.btnSaveAs = ui.NewButton("Save As...")
+	c.btnSaveAs.SetOnClick(c.SaveOpenedConfigAs)
 	c.btnRemove = ui.NewButton("Remove")
 	c.btnRemove.SetOnClick(c.RemoveSelectedConfig)
 
@@ -52,10 +58,12 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 		c.Cancel()
 	})
 
-	c.panelButtons.AddWidget(0, 0, c.btnRemove)
-	c.panelButtons.AddWidget(0, 1, ui.NewHSpacer())
-	c.panelButtons.AddWidget(0, 2, c.btnOK)
-	c.panelButtons.AddWidget(0, 3, c.btnCancel)
+	c.panelButtons.AddWidget(0, 0, c.btnNew)
+	c.panelButtons.AddWidget(0, 1, c.btnSaveAs)
+	c.panelButtons.AddWidget(0, 2, c.btnRemove)
+	c.panelButtons.AddWidget(0, 3, ui.NewHSpacer())
+	c.panelButtons.AddWidget(0, 4, c.btnOK)
+	c.panelButtons.AddWidget(0, 5, c.btnCancel)
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingRows(true)
@@ -86,10 +94,47 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
 
-		c.LoadTable(-1)
+		c.LoadTableSelectID(c.openedConfigId)
 	}
 
 	return &c
+}
+
+// CreateConfig creates an empty config and selects it in the table
+func (c *OpenConfigDialog) CreateConfig() {
+	c.ShowDialog(NewCreateConfigDialog("New Config", "", func(name string) {
+		if name == "" {
+			return
+		}
+		cfg, err := config.CreateNewConfig(name)
+		if err != nil {
+			ui.ShowMessageBox(c, "Error", err.Error())
+			return
+		}
+		c.LoadTableSelectID(cfg.ID)
+		c.lvConfigs.Focus()
+	}, func() {
+		c.lvConfigs.Focus()
+	}))
+}
+
+// SaveOpenedConfigAs saves a copy of the opened config under a new name and selects it in the table
+func (c *OpenConfigDialog) SaveOpenedConfigAs() {
+	opened := config.Get()
+	c.ShowDialog(NewCreateConfigDialog("Save Config As", opened.Name+" copy", func(name string) {
+		if name == "" {
+			return
+		}
+		cfg, err := config.CopyConfig(opened, name)
+		if err != nil {
+			ui.ShowMessageBox(c, "Error", err.Error())
+			return
+		}
+		c.LoadTableSelectID(cfg.ID)
+		c.lvConfigs.Focus()
+	}, func() {
+		c.lvConfigs.Focus()
+	}))
 }
 
 func (c *OpenConfigDialog) RemoveSelectedConfig() {
@@ -97,7 +142,7 @@ func (c *OpenConfigDialog) RemoveSelectedConfig() {
 		selectedConfigIndex := c.lvConfigs.CurrentRow()
 		selectedConfig := c.GetSelectedConfig()
 
-		if selectedConfig.ID == c.openedConfigId {
+		if selectedConfig != nil && selectedConfig.ID == c.openedConfigId {
 			ui.ShowMessageBox(c, "Error", "Cannot remove the currently opened config.")
 			return
 		}
@@ -128,19 +173,24 @@ func (c *OpenConfigDialog) LoadTable(selectedConfigIndex int) {
 		c.lvConfigs.SetCellColor(i, 2, ui.ColorFromHex("#555555"))
 	}
 
-	if selectedConfigIndex >= 0 && selectedConfigIndex < len(configs) {
+	// After removing the last row select the new last one
+	selectedConfigIndex = min(selectedConfigIndex, len(configs)-1)
+	if selectedConfigIndex >= 0 {
 		c.lvConfigs.SetCurrentCell2(selectedConfigIndex, 0)
 		c.lvConfigs.ScrollToCell2(selectedConfigIndex, 0)
-	} else {
-		// Select the current config
-		for i, cfg := range configs {
-			if cfg.ID == c.openedConfigId {
-				c.lvConfigs.SetCurrentCell2(i, 0)
-				c.lvConfigs.ScrollToCell2(i, 0)
-				break
-			}
+	}
+}
+
+// LoadTableSelectID fills the table and selects the config with the ID
+func (c *OpenConfigDialog) LoadTableSelectID(id string) {
+	index := -1
+	for i, cfg := range config.Configs() {
+		if cfg.ID == id {
+			index = i
+			break
 		}
 	}
+	c.LoadTable(index)
 }
 
 func (c *OpenConfigDialog) GetSelectedConfig() *config.Config {

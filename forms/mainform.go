@@ -5,14 +5,19 @@ import "github.com/u00io/nuiforms/ui"
 type MainForm struct {
 	ui.Widget
 
-	panelCenter *ui.Panel
+	splitter *ui.Splitter
 
 	topWidget    *TopWidget
 	leftWidget   *LeftWidget
-	centerWidget *CenterWidget
 	details      *DetailsWidget
 	bottomWidget *BottomWidget
 }
+
+const (
+	detailsInitialWidth = 500
+	// When the window gets narrow the details shrink first, down to this table width
+	tableMinWidth = 400
+)
 
 var lastCreatedMainWidget *MainForm
 
@@ -21,18 +26,17 @@ func NewMainForm() *MainForm {
 	c.InitWidget()
 	c.topWidget = NewTopWidget()
 	c.leftWidget = NewLeftWidget()
-	c.centerWidget = NewCenterWidget()
 	c.bottomWidget = NewBottomWidget()
 
 	c.AddWidget(0, 0, c.topWidget)
-	c.panelCenter = ui.NewPanel()
-	c.panelCenter.SetPanelPadding(0)
-	c.panelCenter.AddWidget(0, 0, c.leftWidget)
-	c.panelCenter.AddWidget(0, 1, c.centerWidget)
 	c.details = NewDetailsWidget()
 	c.details.SetVisible(false)
-	c.panelCenter.AddWidget(0, 2, c.details)
-	c.AddWidget(1, 0, c.panelCenter)
+	// The details keep their width when the window is resized
+	c.leftWidget.SetMinWidth(tableMinWidth)
+	c.splitter = ui.NewHSplitter()
+	c.splitter.SetWidgets(c.leftWidget, c.details)
+	c.splitter.SetSecondSize(detailsInitialWidth)
+	c.AddWidget(1, 0, c.splitter)
 	c.AddWidget(2, 0, c.bottomWidget)
 	lastCreatedMainWidget = &c
 
@@ -42,8 +46,13 @@ func NewMainForm() *MainForm {
 
 func (c *MainForm) ToggleDetails() {
 	c.details.SetVisible(!c.details.IsVisible())
+	c.details.Refresh()
 	c.Form().UpdateLayout()
 	c.Form().Update()
+}
+
+func (c *MainForm) IsDetailsVisible() bool {
+	return c.details.IsVisible()
 }
 
 func (c *MainForm) Activate() {

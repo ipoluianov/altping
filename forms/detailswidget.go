@@ -40,13 +40,22 @@ func NewDetailsWidget() *DetailsWidget {
 	c.chart = ui.NewTimeChart()
 	c.AddWidget(1, 0, c.chart)
 
+	// The selection is checked often so the chart follows the table without a visible delay
+	c.AddTimer(50, c.checkSelection)
 	c.AddTimer(500, c.timerUpdate)
 
 	lastCreatedDetailsWidget = &c
 	return &c
 }
 
-func (c *DetailsWidget) timerUpdate() {
+// Refresh shows the hosts selected in the table and the current time range right away
+func (c *DetailsWidget) Refresh() {
+	c.checkSelection()
+	c.timerUpdate()
+}
+
+// checkSelection rebuilds the chart when other hosts are selected in the table
+func (c *DetailsWidget) checkSelection() {
 	if !c.IsVisible() {
 		return
 	}
@@ -63,8 +72,18 @@ func (c *DetailsWidget) timerUpdate() {
 	if idsStr != c.shownHostIDs {
 		c.shownHostIDs = idsStr
 		c.rebuildChart(hosts)
+		c.updateTimeRange()
 	}
+}
 
+func (c *DetailsWidget) timerUpdate() {
+	if !c.IsVisible() {
+		return
+	}
+	c.updateTimeRange()
+}
+
+func (c *DetailsWidget) updateTimeRange() {
 	now := time.Now()
 	c.chart.SetDefaultTimeRange(now.Add(-detailsLiveWindow), now)
 	c.Form().Update()
