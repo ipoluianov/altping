@@ -125,7 +125,15 @@ func (c *TopWidget) onBtnAddItem() {
 		}
 		firstID := ""
 		for _, address := range addresses {
-			host := config.ConfigHost{ID: config.GenerateRandomID(), Hostname: address}
+			host := config.ConfigHost{
+				ID:         config.GenerateRandomID(),
+				Hostname:   address,
+				Port:       hostConfig.Port,
+				IntervalMs: hostConfig.IntervalMs,
+				TimeoutMs:  hostConfig.TimeoutMs,
+				SlowMs:     hostConfig.SlowMs,
+				Notify:     hostConfig.Notify,
+			}
 			if len(addresses) == 1 {
 				host.DisplayName = hostConfig.DisplayName
 			}
@@ -154,6 +162,11 @@ func (c *TopWidget) onBtnEditItem() {
 		if hostConfig != nil {
 			selectedHost.DisplayName = hostConfig.DisplayName
 			selectedHost.Hostname = hostConfig.Hostname
+			selectedHost.Port = hostConfig.Port
+			selectedHost.IntervalMs = hostConfig.IntervalMs
+			selectedHost.TimeoutMs = hostConfig.TimeoutMs
+			selectedHost.SlowMs = hostConfig.SlowMs
+			selectedHost.Notify = hostConfig.Notify
 			config.Get().Save()
 			lastCreatedLeftWidget.ApplyHostsChange(selectedHost.ID, -1)
 			lastCreatedLeftWidget.FocusTable()
@@ -244,8 +257,8 @@ func removeHostsQuestion(hosts []*config.ConfigHost) string {
 			break
 		}
 		sb.WriteString("\n" + hostDisplayName(h))
-		if h.DisplayName != "" && h.DisplayName != h.Hostname {
-			sb.WriteString(" (" + h.Hostname + ")")
+		if h.DisplayName != "" && h.DisplayName != h.Address() {
+			sb.WriteString(" (" + h.Address() + ")")
 		}
 	}
 	return sb.String()

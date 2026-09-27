@@ -14,8 +14,6 @@ type BottomWidget struct {
 	ui.Widget
 
 	lblStatus *ui.Label
-	lblHelp   *ui.Label
-	lblAbout  *ui.Label
 }
 
 func NewBottomWidget() *BottomWidget {
@@ -25,13 +23,19 @@ func NewBottomWidget() *BottomWidget {
 	c.lblStatus = ui.NewLabel("---")
 	c.AddWidget(0, 0, c.lblStatus)
 	c.AddWidget(0, 1, ui.NewHSpacer())
-	c.lblHelp = newLinkLabel("Help", func() { openDocs(&c, "help") })
-	c.AddWidget(0, 2, c.lblHelp)
-	linksSpace := ui.NewSpace()
-	linksSpace.SetSize(12, 0)
-	c.AddWidget(0, 3, linksSpace)
-	c.lblAbout = newLinkLabel("About", c.onAbout)
-	c.AddWidget(0, 4, c.lblAbout)
+	links := []*ui.Label{
+		newLinkLabel("Settings", func() { lastCreatedMainWidget.ShowSettings() }),
+		newLinkLabel("Help", func() { openDocs(&c, "help") }),
+		newLinkLabel("About", c.onAbout),
+	}
+	for i, lbl := range links {
+		if i > 0 {
+			space := ui.NewSpace()
+			space.SetSize(12, 0)
+			c.AddWidget(0, 1+i*2, space)
+		}
+		c.AddWidget(0, 2+i*2, lbl)
+	}
 
 	c.AddTimer(1000, c.timerUpdate)
 

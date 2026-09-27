@@ -1,7 +1,10 @@
 package forms
 
 import (
+	"fmt"
+
 	"github.com/ipoluianov/altping/config"
+	"github.com/ipoluianov/altping/system"
 	"github.com/u00io/nuiforms/ui"
 )
 
@@ -17,7 +20,14 @@ type MainForm struct {
 
 	// The width the user gave the details, kept while they are hidden
 	detailsWidth int
+
+	// Hosts known to be down (true) or up (false), for the notifications
+	hostDown  map[string]bool
+	downCount int
 }
+
+// A host is down after this many failed pings in a row, so a single lost ping does not beep
+const downAfterFailures = 3
 
 const (
 	appTitle            = "Alt Ping"
@@ -53,8 +63,83 @@ func NewMainForm() *MainForm {
 	c.AddWidget(2, 0, c.bottomWidget)
 	lastCreatedMainWidget = &c
 
+	c.hostDown = make(map[string]bool)
+	c.AddTimer(500, c.checkHostsDown)
+
 	c.SetPanelPadding(3)
 	return &c
+}
+
+// ApplySettings saves the settings and applies what they change in the window
+func (c *MainForm) ApplySettings(s config.Settings) {
+	if err := config.SetSettings(s); err != nil {
+		ui.ShowMessageBox(c, "Error", err.Error())
+	}
+	c.leftWidget.ApplyColumns()
+	c.Form().SetAlwaysOnTop(s.AlwaysOnTop)
+	c.checkHostsDown()
+}
+
+// ShowSettings opens the settings dialog
+func (c *MainForm) ShowSettings() {
+	c.ShowDialog(NewSettingsDialog(config.GetSettings(), c.ApplySettings))
+}
+
+// checkHostsDown beeps and marks the window in the taskbar when a host with
+// notifications on goes down or comes back. The first state seen is not reported.
+func (c *MainForm) checkHostsDown() {
+	if !system.Get().IsRunning() {
+		clear(c.hostDown)
+		c.setDownCount(0)
+		return
+	}
+
+	changed := false
+	downCount := 0
+	seen := make(map[string]bool)
+	for _, h := range config.Get().Hosts {
+		history := system.Get().GetHostHistory(h.ID)
+		if !h.Notify || history == nil {
+			continue
+		}
+		seen[h.ID] = true
+		streak := history.FailStreak()
+		wasDown, known := c.hostDown[h.ID]
+		down := streak >= downAfterFailures
+		if !down && wasDown && streak > 0 {
+			down = true // still failing: not back yet
+		}
+		if down {
+			downCount++
+		}
+		// No ping result after a start: nothing to compare with yet
+		if history.LastChange().IsZero() {
+			continue
+		}
+		if known && down != wasDown {
+			changed = true
+		}
+		c.hostDown[h.ID] = down
+	}
+	for id := range c.hostDown {
+		if !seen[id] {
+			delete(c.hostDown, id)
+		}
+	}
+
+	c.setDownCount(downCount)
+	if changed {
+		c.Form().Beep()
+		c.Form().RequestAttention()
+	}
+}
+
+func (c *MainForm) setDownCount(n int) {
+	if c.downCount == n {
+		return
+	}
+	c.downCount = n
+	c.UpdateTitle()
 }
 
 func (c *MainForm) ToggleDetails() {
@@ -69,6 +154,10 @@ func (c *MainForm) UpdateTitle() {
 	title := appTitle
 	if cfg := config.Get(); cfg != nil && cfg.Name != "" {
 		title += " - " + cfg.Name
+	}
+	// Seen in the taskbar while the window is in the background
+	if c.downCount > 0 {
+		title = fmt.Sprintf("(%d down) %s", c.downCount, title)
 	}
 	c.Form().SetTitle(title)
 }

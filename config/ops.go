@@ -84,6 +84,7 @@ func loadDefaultConfig() {
 }
 
 func Init() {
+	LoadSettings()
 	loadDefaultConfig()
 }
 

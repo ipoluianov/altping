@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,32 +18,49 @@ import (
 
 var lastCreatedLeftWidget *LeftWidget
 
-// statsPeriod is the period the Loss, Avg and Max columns are computed over
+// statsPeriod is the period the Loss, Min, Avg, Max and Jitter columns are computed over
 const statsPeriod = 5 * time.Minute
 
+// The fields a host row can show; the table shows some of them (LeftWidget.columns)
 const (
 	colName = iota
 	colIP
 	colTime
 	colLoss
+	colMin
 	colAvg
 	colMax
+	colJitter
+	colSince
 	colDetails
 	colCount
 )
 
+// hostColumns describes the fields in the order of the table columns;
+// the optional ones are shown only when turned on in the settings
 var hostColumns = [colCount]struct {
 	name  string
 	width int
+	shown func(s config.Settings) bool // nil - always
 }{
-	{"Name", 150},
-	{"IP", 140},
-	{"Time ms", 90},
-	{"Loss %", 90},
-	{"Avg ms", 90},
-	{"Max ms", 90},
-	{"Details", 200},
+	colName:    {"Name", 150, nil},
+	colIP:      {"IP", 140, nil},
+	colTime:    {"Time ms", 90, nil},
+	colLoss:    {"Loss %", 90, nil},
+	colMin:     {"Min ms", 90, func(s config.Settings) bool { return s.ShowMin }},
+	colAvg:     {"Avg ms", 90, nil},
+	colMax:     {"Max ms", 90, nil},
+	colJitter:  {"Jitter ms", 110, func(s config.Settings) bool { return s.ShowJitter }},
+	colSince:   {"Since", 90, func(s config.Settings) bool { return s.ShowSince }},
+	colDetails: {"Details", 200, nil},
 }
+
+var (
+	colorNotPinged = ui.ColorFromHex("#888888")
+	colorOK        = ui.ColorFromHex("#1ebd1e")
+	colorSlow      = ui.ColorFromHex("#d9b72b")
+	colorFailed    = ui.ColorFromHex("#e6660a")
+)
 
 type LeftWidget struct {
 	ui.Widget
@@ -51,7 +69,10 @@ type LeftWidget struct {
 	// Shown instead of the table while there are no hosts
 	emptyHint *ui.Panel
 
-	// Column the rows are sorted by (-1 - config order). The rows are sorted
+	// The fields shown, one per table column
+	columns []int
+
+	// Field the rows are sorted by (-1 - config order). The rows are sorted
 	// when a header is clicked, not on every update, so they do not jump around.
 	sortColumn int
 	sortDesc   bool
@@ -70,11 +91,7 @@ func NewLeftWidget() *LeftWidget {
 
 	c.sortColumn = -1
 	c.lvItems.SetSelectingRows(true)
-	c.lvItems.SetColumnCount(colCount)
-	for i, col := range hostColumns {
-		c.lvItems.SetColumnWidth(i, col.width)
-	}
-	c.updateColumnNames()
+	c.ApplyColumns()
 	c.lvItems.SetOnColumnClick(c.onColumnClick)
 
 	c.lvItems.SetMultiselect(true)
@@ -83,6 +100,15 @@ func NewLeftWidget() *LeftWidget {
 	menu := ui.NewContextMenu(c.lvItems)
 	menu.AddItem("Edit... (E)", func() { lastCreatedTopWidget.onBtnEditItem() }).SetImage(loadIcon("edit-16"))
 	menu.AddItem("Remove (Del)", func() { lastCreatedTopWidget.onBtnRemoveItem() }).SetImage(loadIcon("remove-16"))
+	menu.AddSeparator()
+	menu.AddItem("Downtime...", func() {
+		if hosts := c.GetSelectedHostConfigs(); len(hosts) > 0 {
+			c.ShowDialog(NewDowntimeDialog(hosts[0]))
+		}
+	})
+	menu.AddItem("Export history...", func() { exportHistory(c.GetSelectedHostConfigs()) })
+	menu.AddSeparator()
+	menu.AddItemWithSubmenu("Change selected", c.newChangeMenu())
 	c.lvItems.SetContextMenu(menu)
 
 	// Double click edits the host, like Enter and E
@@ -195,8 +221,116 @@ func newEmptyHint() *ui.Panel {
 	return p
 }
 
+// newChangeMenu changes an option of all the selected hosts at once
+func (c *LeftWidget) newChangeMenu() *ui.ContextMenu {
+	menu := ui.NewContextMenu(c.lvItems)
+	menu.AddItem("Beep on", func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = true }) })
+	menu.AddItem("Beep off", func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = false }) })
+	menu.AddSeparator()
+	menu.AddItem("Check TCP port...", func() {
+		c.askSelected("Check TCP port", "Port:", func(h *config.ConfigHost) int {
+			if _, port := h.Target(); port != "" {
+				p, _ := strconv.Atoi(port)
+				return p
+			}
+			return defaultTCPPort
+		}, 1, 65535, 1, func(h *config.ConfigHost, v int) {
+			h.Hostname, _ = h.Target() // an old "host:port" becomes the host
+			h.Port = v
+		})
+	})
+	menu.AddItem("Use ping", func() {
+		c.changeSelected(func(h *config.ConfigHost) {
+			h.Hostname, _ = h.Target()
+			h.Port = 0
+		})
+	})
+	menu.AddSeparator()
+	menu.AddItem("Ping every...", func() {
+		c.askSelected("Ping every", "Ping every, ms:", func(h *config.ConfigHost) int { return int(h.Interval().Milliseconds()) },
+			config.MinIntervalMs, config.MaxIntervalMs, 100, func(h *config.ConfigHost, v int) { h.IntervalMs = storedMs(v, config.DefaultIntervalMs) })
+	})
+	menu.AddItem("Timeout...", func() {
+		c.askSelected("Timeout", "Timeout, ms:", func(h *config.ConfigHost) int { return int(h.Timeout().Milliseconds()) },
+			config.MinTimeoutMs, config.MaxTimeoutMs, 100, func(h *config.ConfigHost, v int) { h.TimeoutMs = storedMs(v, config.DefaultTimeoutMs) })
+	})
+	menu.AddItem("Slow above...", func() {
+		c.askSelected("Slow above", "Slow above, ms (0 - off):", func(h *config.ConfigHost) int { return h.SlowMs },
+			0, config.MaxSlowMs, 10, func(h *config.ConfigHost, v int) { h.SlowMs = v })
+	})
+	return menu
+}
+
+// storedMs keeps the default out of the config file
+func storedMs(v, def int) int {
+	if v == def {
+		return 0
+	}
+	return v
+}
+
+// askSelected asks for a number, starting from the value of the first selected host,
+// and sets it for all the selected hosts
+func (c *LeftWidget) askSelected(title, label string, current func(h *config.ConfigHost) int, minValue, maxValue, step int, set func(h *config.ConfigHost, v int)) {
+	hosts := c.GetSelectedHostConfigs()
+	if len(hosts) == 0 {
+		return
+	}
+	c.ShowDialog(NewNumberDialog(title, label, current(hosts[0]), minValue, maxValue, step, func(v int) {
+		c.changeSelected(func(h *config.ConfigHost) { set(h, v) })
+	}))
+}
+
+// changeSelected changes all the selected hosts, saves the config and restarts
+// only the hosts that need it; the selection is kept
+func (c *LeftWidget) changeSelected(change func(h *config.ConfigHost)) {
+	hosts := c.GetSelectedHostConfigs()
+	if len(hosts) == 0 {
+		return
+	}
+	for _, h := range hosts {
+		change(h)
+	}
+	if err := config.Get().Save(); err != nil {
+		ui.ShowMessageBox(c, "Error", err.Error())
+	}
+	c.loadHosts()
+	system.Get().SyncHosts()
+	c.timerUpdate()
+	rows := make([]int, 0, len(hosts))
+	for _, h := range hosts {
+		rows = append(rows, c.RowOfHost(h.ID))
+	}
+	c.lvItems.SetSelectedRows(rows)
+	c.FocusTable()
+}
+
+// ApplyColumns shows the columns turned on in the settings
+func (c *LeftWidget) ApplyColumns() {
+	settings := config.GetSettings()
+	c.columns = c.columns[:0]
+	for field, col := range hostColumns {
+		if col.shown == nil || col.shown(settings) {
+			c.columns = append(c.columns, field)
+		}
+	}
+	if !slices.Contains(c.columns, c.sortColumn) {
+		c.sortColumn = -1
+	}
+	c.lvItems.SetColumnCount(len(c.columns))
+	for i, field := range c.columns {
+		c.lvItems.SetColumnWidth(i, hostColumns[field].width)
+	}
+	c.updateColumnNames()
+	c.timerUpdate()
+}
+
 // onColumnClick sorts by the column; a second click reverses the order
-func (c *LeftWidget) onColumnClick(col int) {
+func (c *LeftWidget) onColumnClick(index int) {
+	if index < 0 || index >= len(c.columns) {
+		return
+	}
+	col := c.columns[index]
 	if col == c.sortColumn {
 		c.sortDesc = !c.sortDesc
 	} else {
@@ -219,9 +353,9 @@ func (c *LeftWidget) onColumnClick(col int) {
 
 // updateColumnNames marks the sort column with an arrow
 func (c *LeftWidget) updateColumnNames() {
-	for i, col := range hostColumns {
-		name := col.name
-		if i == c.sortColumn {
+	for i, field := range c.columns {
+		name := hostColumns[field].name
+		if field == c.sortColumn {
 			if c.sortDesc {
 				name += " ▼"
 			} else {
@@ -255,6 +389,8 @@ type hostRow struct {
 	ip        string
 	time      time.Duration // of the last ping
 	stats     system.HistoryStats
+	since     time.Time // when the result last changed; zero - unknown
+	slowMs    int       // the host's limit for "slow"; 0 - off
 	details   string
 }
 
@@ -262,6 +398,7 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 	state := system.Get().GetHostLastState(h.ID)
 	r := hostRow{
 		name:      hostDisplayName(h),
+		slowMs:    h.SlowMs,
 		processed: state.StatOK > 0 || state.StatERR > 0,
 		failed:    state.LastError != nil,
 		ip:        state.StatIP,
@@ -270,6 +407,7 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 	}
 	if history := system.Get().GetHostHistory(h.ID); history != nil {
 		r.stats = history.Stats(time.Now().Add(-statsPeriod))
+		r.since = history.LastChange()
 	}
 	if r.failed {
 		switch state.LastError.Error() {
@@ -277,6 +415,8 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 			r.details = "TIMEOUT"
 		case "cannot resolve hostname":
 			r.details = "CANNOT RESOLVE HOSTNAME"
+		case "port closed":
+			r.details = "PORT CLOSED"
 		default:
 			r.details = state.LastError.Error()
 		}
@@ -307,10 +447,42 @@ func (r hostRow) texts() [colCount]string {
 		t[colLoss] = fmt.Sprintf("%.1f", r.stats.LossPercent())
 	}
 	if r.stats.Sent > r.stats.Lost {
+		t[colMin] = formatMs(r.stats.Min)
 		t[colAvg] = formatMs(r.stats.Avg)
 		t[colMax] = formatMs(r.stats.Max)
+		t[colJitter] = formatMs(r.stats.Jitter)
+	}
+	if !r.since.IsZero() {
+		t[colSince] = formatSince(time.Since(r.since))
 	}
 	return t
+}
+
+// formatSince shows how long ago in the largest two units: 45s, 12m 5s, 3h 20m, 2d 4h
+func formatSince(d time.Duration) string {
+	sec := int(d.Seconds())
+	switch {
+	case sec < 60:
+		return fmt.Sprintf("%ds", sec)
+	case sec < 3600:
+		return fmt.Sprintf("%dm %ds", sec/60, sec%60)
+	case sec < 86400:
+		return fmt.Sprintf("%dh %dm", sec/3600, sec%3600/60)
+	}
+	return fmt.Sprintf("%dd %dh", sec/86400, sec%86400/3600)
+}
+
+// color shows the state of the host: not pinged yet, replies, replies slowly, failed
+func (r hostRow) color(settings config.Settings) color.Color {
+	switch {
+	case r.failed:
+		return colorFailed
+	case !r.processed:
+		return colorNotPinged
+	case r.slowMs > 0 && r.stats.Sent > r.stats.Lost && r.stats.Avg > time.Duration(r.slowMs)*time.Millisecond:
+		return colorSlow
+	}
+	return colorOK
 }
 
 // formatMs shows short times with a decimal, e.g. 0.4 for a LAN host
@@ -346,8 +518,14 @@ func lessHostRows(a, b hostRow, col int, desc bool) bool {
 		}
 	case colAvg:
 		va, vb = rowValue(a.stats.Sent > a.stats.Lost, a.stats.Avg), rowValue(b.stats.Sent > b.stats.Lost, b.stats.Avg)
+	case colMin:
+		va, vb = rowValue(a.stats.Sent > a.stats.Lost, a.stats.Min), rowValue(b.stats.Sent > b.stats.Lost, b.stats.Min)
 	case colMax:
 		va, vb = rowValue(a.stats.Sent > a.stats.Lost, a.stats.Max), rowValue(b.stats.Sent > b.stats.Lost, b.stats.Max)
+	case colJitter:
+		va, vb = rowValue(a.stats.Sent > a.stats.Lost, a.stats.Jitter), rowValue(b.stats.Sent > b.stats.Lost, b.stats.Jitter)
+	case colSince:
+		va, vb = rowValue(!a.since.IsZero(), time.Since(a.since)), rowValue(!b.since.IsZero(), time.Since(b.since))
 	}
 
 	if !numeric {
@@ -394,24 +572,17 @@ func rowValue(has bool, d time.Duration) float64 {
 }
 
 func (c *LeftWidget) timerUpdate() {
+	settings := config.GetSettings()
 	for row := 0; row < c.lvItems.RowCount(); row++ {
 		hostConfig, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
 		if !ok || hostConfig == nil {
 			continue
 		}
 		r := hostRowOf(hostConfig)
-		for i, text := range r.texts() {
-			c.lvItems.SetCellText2(row, i, text)
-		}
-
-		var col color.Color = ui.ColorFromHex("#888888")
-		if r.processed {
-			col = ui.ColorFromHex("#1ebd1e")
-		}
-		if r.failed {
-			col = ui.ColorFromHex("#e6660a")
-		}
-		for i := 0; i < colCount; i++ {
+		texts := r.texts()
+		col := r.color(settings)
+		for i, field := range c.columns {
+			c.lvItems.SetCellText2(row, i, texts[field])
 			c.lvItems.SetCellColor(row, i, col)
 		}
 	}

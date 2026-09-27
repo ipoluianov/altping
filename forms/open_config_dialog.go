@@ -166,7 +166,7 @@ func (c *OpenConfigDialog) LoadTable(selectedConfigIndex int) {
 		c.lvConfigs.SetCellText2(i, 1, fmt.Sprintf("%d", len(cfg.Hosts)))
 		hostnames := make([]string, len(cfg.Hosts))
 		for j, host := range cfg.Hosts {
-			hostnames[j] = host.Hostname
+			hostnames[j] = host.Address()
 		}
 		c.lvConfigs.SetCellText2(i, 2, strings.Join(hostnames, ", "))
 

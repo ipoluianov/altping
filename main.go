@@ -27,6 +27,7 @@ func main() {
 		if maximized {
 			form.Maximize()
 		}
+		form.SetAlwaysOnTop(config.GetSettings().AlwaysOnTop)
 		mainForm.Activate()
 	})
 	form.Exec()

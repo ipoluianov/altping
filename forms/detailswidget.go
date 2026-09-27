@@ -158,7 +158,7 @@ func hostDisplayName(h *config.ConfigHost) string {
 	if h.DisplayName != "" {
 		return h.DisplayName
 	}
-	return h.Hostname
+	return h.Address()
 }
 
 // historySource feeds the in-memory ping history of a host to the chart.

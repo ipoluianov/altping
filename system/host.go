@@ -1,10 +1,14 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ipoluianov/altping/config"
@@ -135,37 +139,58 @@ func (c *Host) UpdateConfig() {
 	c.resetStat()
 }
 
+// target returns the host to resolve and the TCP port to connect to ("" - ping)
+func (c *Host) target() (host string, port string) {
+	return c.configHost.Target()
+}
+
 func (c *Host) checkIP() bool {
 	if len(c.IP) == 0 {
-		ips, err := net.LookupIP(c.configHost.Hostname)
-		if err != nil {
+		host, _ := c.target()
+		ips, err := net.LookupIP(host)
+		ip := pickIP(ips)
+		if err != nil || ip == nil {
 			c.mtx.Lock()
 			c.IP = ""
 			c.mtx.Unlock()
 			c.resultErr = errors.New("cannot resolve hostname")
 			return false
 		}
-
-		// Find IP v4 address
-		var ip4 net.IP
-		for _, ip := range ips {
-			if ip.To4() != nil {
-				ip4 = ip
-				break
-			}
-		}
-		if ip4 == nil {
-			c.mtx.Lock()
-			c.IP = ""
-			c.mtx.Unlock()
-			c.resultErr = fmt.Errorf("no IPv4 address found for %s", c.configHost.Hostname)
-			return false
-		}
 		c.mtx.Lock()
-		c.IP = ip4.String()
+		c.IP = ip.String()
 		c.mtx.Unlock()
 	}
 	return true
+}
+
+// connectTCP measures how long it takes to open a connection to the port
+func (c *Host) connectTCP(port string, timeout time.Duration) (time.Duration, net.Addr, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	go func() {
+		select {
+		case <-c.chanStop:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	start := time.Now()
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(c.IP, port))
+	elapsed := time.Since(start)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, os.ErrDeadlineExceeded) {
+			return elapsed, nil, errors.New("timeout")
+		}
+		// Windows reports its own error code, so the text is checked too
+		if errors.Is(err, syscall.ECONNREFUSED) || strings.Contains(err.Error(), "refused") {
+			return elapsed, nil, errors.New("port closed")
+		}
+		return elapsed, nil, err
+	}
+	peer := conn.RemoteAddr()
+	conn.Close()
+	return elapsed, peer, nil
 }
 
 func (c *Host) updateState() {
@@ -222,10 +247,17 @@ func (c *Host) thWork() {
 		case <-c.chanStop:
 			return
 		}
-		timeout = time.Duration(1000) * time.Millisecond
+		timeout = c.configHost.Interval()
 
 		if c.checkIP() {
-			result, peer, err := c.pingServer.PingHost(c.IP, 64, 1000, c.chanStop)
+			var result time.Duration
+			var peer net.Addr
+			var err error
+			if _, port := c.target(); port != "" {
+				result, peer, err = c.connectTCP(port, c.configHost.Timeout())
+			} else {
+				result, peer, err = c.pingServer.PingHost(c.IP, 64, int(c.configHost.Timeout().Milliseconds()), c.chanStop)
+			}
 			c.resultLastPingTime = result
 
 			liveIP := ""
@@ -246,6 +278,9 @@ func (c *Host) thWork() {
 				udpAddr, ok := peer.(*net.UDPAddr)
 				if ok {
 					liveIP = udpAddr.IP.String()
+				}
+				if tcpAddr, ok := peer.(*net.TCPAddr); ok {
+					liveIP = tcpAddr.IP.String()
 				}
 			}
 			c.resultLastLiveIP = liveIP

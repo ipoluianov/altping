@@ -43,6 +43,10 @@ type HostHistory struct {
 	samples  []HistorySample
 	filePath string
 	file     *os.File
+
+	// The state of the last pings, kept up to date on every sample
+	lastChange time.Time // when the ping result last changed (OK <-> failed) or pinging started
+	failStreak int       // failed pings in a row at the end
 }
 
 // historyDirectory returns the directory with the history files, next to the configs
@@ -79,11 +83,13 @@ func (c *HostHistory) load() {
 			continue
 		}
 		c.samples = append(c.samples, s)
+		c.track(s)
 	}
 
 	// The program was not stopped properly: close the data before the downtime
 	if n := len(c.samples); n > 0 && !c.samples[n-1].Gap {
 		c.samples = append(c.samples, HistorySample{DT: c.samples[n-1].DT, Gap: true})
+		c.track(c.samples[n])
 	}
 
 	c.rewriteFile()
@@ -139,6 +145,7 @@ func (c *HostHistory) Add(s HistorySample) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	c.samples = append(c.samples, s)
+	c.track(s)
 
 	// Drop samples older than historyDepth.
 	// Compact only when a noticeable part has expired to avoid copying on every sample.
@@ -156,6 +163,76 @@ func (c *HostHistory) Add(s HistorySample) {
 			fmt.Println("History write error:", err)
 		}
 	}
+}
+
+// track updates lastChange and failStreak with the next sample
+func (c *HostHistory) track(s HistorySample) {
+	n := len(c.samples)
+	var prev *HistorySample
+	if n >= 2 {
+		prev = &c.samples[n-2]
+	}
+	switch {
+	case s.Gap:
+		// Pinging stopped or started: what happened meanwhile is unknown
+		c.failStreak = 0
+		c.lastChange = time.Time{}
+	case prev == nil || prev.Gap || prev.OK != s.OK:
+		c.lastChange = s.DT
+	}
+	if !s.Gap {
+		if s.OK {
+			c.failStreak = 0
+		} else {
+			c.failStreak++
+		}
+	}
+}
+
+// LastChange returns when the ping result last changed between OK and failed
+// (or pinging started); zero when nothing is known
+func (c *HostHistory) LastChange() time.Time {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	return c.lastChange
+}
+
+// FailStreak returns how many pings in a row have failed
+func (c *HostHistory) FailStreak() int {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	return c.failStreak
+}
+
+// Outage is a period when the host did not reply
+type Outage struct {
+	Start   time.Time
+	End     time.Time // the first reply after it, or when pinging stopped
+	Ongoing bool      // the host is still not replying; End is the last failed ping
+}
+
+// Outages returns the periods without replies since the time, the oldest first
+func (c *HostHistory) Outages(since time.Time) []Outage {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	var res []Outage
+	var cur *Outage
+	i0 := sort.Search(len(c.samples), func(i int) bool { return !c.samples[i].DT.Before(since) })
+	for _, s := range c.samples[i0:] {
+		failed := !s.Gap && !s.OK
+		switch {
+		case failed && cur == nil:
+			res = append(res, Outage{Start: s.DT, End: s.DT, Ongoing: true})
+			cur = &res[len(res)-1]
+		case failed:
+			cur.End = s.DT
+		case cur != nil:
+			cur.End = s.DT
+			cur.Ongoing = false
+			cur = nil
+		}
+	}
+	return res
 }
 
 // Visit calls fn for the samples within [from, to] plus the nearest sample on each side,
@@ -180,8 +257,11 @@ func (c *HostHistory) Visit(from, to time.Time, fn func(s HistorySample)) {
 type HistoryStats struct {
 	Sent int
 	Lost int
-	Avg  time.Duration // of the successful pings
+	Min  time.Duration // of the successful pings
+	Avg  time.Duration
 	Max  time.Duration
+	// Jitter is the average difference between the times of successive successful pings
+	Jitter time.Duration
 }
 
 // LossPercent returns the share of lost pings, 0 when nothing was sent
@@ -197,22 +277,39 @@ func (c *HostHistory) Stats(since time.Time) HistoryStats {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	var res HistoryStats
-	var sum time.Duration
+	var sum, jitterSum time.Duration
+	jitterCount := 0
+	var prev *HistorySample // the previous successful ping, nil after a failure or a gap
 	i0 := sort.Search(len(c.samples), func(i int) bool { return !c.samples[i].DT.Before(since) })
-	for _, s := range c.samples[i0:] {
+	for i := range c.samples[i0:] {
+		s := &c.samples[i0+i]
 		if s.Gap {
+			prev = nil
 			continue
 		}
 		res.Sent++
 		if !s.OK {
 			res.Lost++
+			prev = nil
 			continue
+		}
+		if res.Sent-res.Lost == 1 || s.PingTime < res.Min {
+			res.Min = s.PingTime
 		}
 		sum += s.PingTime
 		res.Max = max(res.Max, s.PingTime)
+		if prev != nil {
+			d := s.PingTime - prev.PingTime
+			jitterSum += max(d, -d)
+			jitterCount++
+		}
+		prev = s
 	}
 	if ok := res.Sent - res.Lost; ok > 0 {
 		res.Avg = sum / time.Duration(ok)
+	}
+	if jitterCount > 0 {
+		res.Jitter = jitterSum / time.Duration(jitterCount)
 	}
 	return res
 }

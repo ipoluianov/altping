@@ -85,19 +85,21 @@ func (c *System) GetHostHistory(id string) *HostHistory {
 }
 
 // SyncHosts applies the current config to the running hosts: added hosts are started,
-// removed ones are stopped, and a host whose address changed is restarted.
+// removed ones are stopped, and a host whose address, interval or timeout changed is restarted.
 // The other hosts keep running with their state and statistics.
 func (c *System) SyncHosts() {
 	cfg := config.Get()
-	addresses := make(map[string]string, len(cfg.Hosts))
+	wanted := make(map[string]config.ConfigHost, len(cfg.Hosts))
 	for _, hostConfig := range cfg.Hosts {
-		addresses[hostConfig.ID] = hostConfig.Hostname
+		wanted[hostConfig.ID] = *hostConfig
 	}
 
 	kept := make(map[string]*Host)
 	var stopping []*Host
 	for _, host := range c.Hosts {
-		if address, ok := addresses[host.ID]; ok && address == host.configHost.Hostname {
+		// The name and the slow limit are only shown; what is pinged and how needs a restart
+		old := host.configHost
+		if w, ok := wanted[host.ID]; ok && w.Address() == old.Address() && w.Interval() == old.Interval() && w.Timeout() == old.Timeout() {
 			kept[host.ID] = host
 		} else {
 			stopping = append(stopping, host)

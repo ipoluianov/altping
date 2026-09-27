@@ -13,11 +13,13 @@ import (
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
 )
 
 type PingServer struct {
 	mtx             sync.Mutex
 	srv             *icmp.PacketConn
+	srv6            *icmp.PacketConn // nil when the system has no IPv6
 	source          uint16
 	nextSequenceNum uint16
 	mode            string
@@ -80,20 +82,30 @@ func (c *PingServer) Start() {
 	}
 
 	mode := ""
+	network4, network6 := "ip4:icmp", "ip6:ipv6-icmp"
 	if useUdpSocket {
-		c.srv, err = icmp.ListenPacket("udp4", "0.0.0.0")
+		network4, network6 = "udp4", "udp6"
 		mode = "udp"
 	} else {
-		c.srv, err = icmp.ListenPacket("ip4:icmp", "0.0.0.0")
 		mode = "icmp"
 	}
+	c.srv, err = icmp.ListenPacket(network4, "0.0.0.0")
 	if err != nil {
 		fmt.Println("Err", err)
 		c.setMode("")
 		return
 	}
+	// IPv6 is optional: without it only IPv6 hosts fail
+	c.srv6, err = icmp.ListenPacket(network6, "::")
+	if err != nil {
+		fmt.Println("IPv6 ping is not available:", err)
+		c.srv6 = nil
+	}
 	c.setMode(mode)
-	go c.thReceive(c.srv)
+	go c.thReceive(c.srv, ipv4.ICMPTypeEchoReply.Protocol(), ipv4.ICMPTypeEchoReply)
+	if c.srv6 != nil {
+		go c.thReceive(c.srv6, ipv6.ICMPTypeEchoReply.Protocol(), ipv6.ICMPTypeEchoReply)
+	}
 }
 
 // setMode is locked: the hosts read the mode while the server is started and stopped
@@ -105,6 +117,9 @@ func (c *PingServer) setMode(mode string) {
 
 func (c *PingServer) Stop() error {
 	c.setMode("")
+	if c.srv6 != nil {
+		c.srv6.Close()
+	}
 	if c.srv != nil {
 		return c.srv.Close()
 	}
@@ -113,7 +128,7 @@ func (c *PingServer) Stop() error {
 
 // thReceive reads the replies until srv is closed. It gets its own socket,
 // as after Stop and Start c.srv is already the new one.
-func (c *PingServer) thReceive(srv *icmp.PacketConn) {
+func (c *PingServer) thReceive(srv *icmp.PacketConn, protocol int, replyType icmp.Type) {
 	var err error
 	rb := make([]byte, 1500)
 
@@ -125,12 +140,12 @@ func (c *PingServer) thReceive(srv *icmp.PacketConn) {
 			break
 		}
 		var rm *icmp.Message
-		rm, err = icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), rb[:n])
+		rm, err = icmp.ParseMessage(protocol, rb[:n])
 		if err != nil {
 			continue
 		}
 
-		if rm.Type != ipv4.ICMPTypeEchoReply {
+		if rm.Type != replyType {
 			continue
 		}
 
@@ -195,31 +210,37 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanSto
 		return
 	}
 
-	var IPs []net.IP
-	IPs, err = net.LookupIP(addr)
-	if err != nil {
-		return
-	}
-
-	var ipAddr net.IP
-
-	for _, ip := range IPs {
-		ipv4 := ip.To4()
-		if ipv4 != nil {
-			ipAddr = ipv4
+	// The host passes the address it has resolved; a name is resolved here, IPv4 first
+	ipAddr := net.ParseIP(addr)
+	if ipAddr == nil {
+		var IPs []net.IP
+		IPs, err = net.LookupIP(addr)
+		if err != nil {
+			return
 		}
+		ipAddr = pickIP(IPs)
 	}
-
-	if len(ipAddr) == 0 {
+	if ipAddr == nil {
 		err = errors.New("cannot lookup address")
 		return
+	}
+	isIPv6 := ipAddr.To4() == nil
+	srv := c.srv
+	var echoType icmp.Type = ipv4.ICMPTypeEcho
+	if isIPv6 {
+		srv = c.srv6
+		echoType = ipv6.ICMPTypeEchoRequest
+		if srv == nil {
+			err = errors.New("IPv6 is not available")
+			return
+		}
 	}
 
 	source := c.source
 	sequenceNum := c.getNextSequenceNum()
 
 	wm := icmp.Message{
-		Type: ipv4.ICMPTypeEcho, Code: 0,
+		Type: echoType, Code: 0,
 		Body: &icmp.Echo{
 			ID:   int(source),
 			Seq:  int(sequenceNum),
@@ -266,7 +287,7 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanSto
 		c.mtx.Unlock()
 	}()
 
-	if _, err = c.srv.WriteTo(wb, destAddr); err != nil {
+	if _, err = srv.WriteTo(wb, destAddr); err != nil {
 		return
 	}
 
@@ -302,4 +323,17 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanSto
 	result = req.RecvTime.Sub(req.SentTime)
 	peer = req.ResultPeer
 	return
+}
+
+// pickIP returns the first IPv4 address, or the first IPv6 one if there is no IPv4
+func pickIP(ips []net.IP) net.IP {
+	for _, ip := range ips {
+		if ip4 := ip.To4(); ip4 != nil {
+			return ip4
+		}
+	}
+	if len(ips) > 0 {
+		return ips[0]
+	}
+	return nil
 }
