@@ -32,11 +32,11 @@ func NewCreateConfigDialog(title string, name string, onAccept func(name string)
 	c.panelButtons = ui.NewPanel()
 	c.AddWidget(2, 0, c.panelButtons)
 
-	c.btnOK = ui.NewButton("OK")
+	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
 	c.btnOK.SetOnClick(c.Accept)
-	c.btnCancel = ui.NewButton("Cancel")
+	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
 	c.btnCancel.SetOnClick(c.Cancel)
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
@@ -45,7 +45,7 @@ func NewCreateConfigDialog(title string, name string, onAccept func(name string)
 
 	c.txtName = ui.NewTextBox()
 	c.txtName.SetText(name)
-	c.panelContent.AddWidget(0, 0, ui.NewLabel("Name:"))
+	c.panelContent.AddWidget(0, 0, ui.NewLabel(T().Name))
 	c.panelContent.AddWidget(0, 1, c.txtName)
 
 	c.OnDialogShow = func() {

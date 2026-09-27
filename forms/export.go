@@ -27,9 +27,9 @@ func exportHistory(hosts []*config.ConfigHost) {
 
 	form := lastCreatedMainWidget.Form()
 	opts := ui.SaveFileDialogOptions{
-		Title:           "Export history",
+		Title:           T().ExportTitle,
 		DefaultFileName: name,
-		Filters:         []ui.FileDialogFilter{{DisplayName: "CSV files", Patterns: []string{"*.csv"}}},
+		Filters:         []ui.FileDialogFilter{{DisplayName: T().CSVFiles, Patterns: []string{"*.csv"}}},
 	}
 	// The system dialog is a separate window: it would open below a window kept on top
 	onTop := config.GetSettings().AlwaysOnTop
@@ -43,7 +43,7 @@ func exportHistory(hosts []*config.ConfigHost) {
 		// No system dialog (e.g. Linux without zenity or kdialog): save to the home folder
 		noDialog := errors.Is(err, ui.ErrNoFileDialog)
 		if err != nil && !noDialog {
-			ui.ShowMessageBox(lastCreatedMainWidget, "Error", err.Error())
+			ui.ShowMessageBox(lastCreatedMainWidget, T().Error, err.Error())
 			return
 		}
 		if noDialog {
@@ -54,11 +54,11 @@ func exportHistory(hosts []*config.ConfigHost) {
 			return // cancelled
 		}
 		if err := writeHistoryCSV(path, hosts); err != nil {
-			ui.ShowMessageBox(lastCreatedMainWidget, "Error", err.Error())
+			ui.ShowMessageBox(lastCreatedMainWidget, T().Error, err.Error())
 			return
 		}
 		if noDialog {
-			ui.ShowMessageBox(lastCreatedMainWidget, "Export history", "Saved to "+path)
+			ui.ShowMessageBox(lastCreatedMainWidget, T().ExportTitle, T().SavedTo(path))
 		}
 	})
 }

@@ -1,8 +1,6 @@
 package forms
 
 import (
-	"fmt"
-
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
 	"github.com/ipoluianov/nui/ui"
@@ -72,8 +70,16 @@ func NewMainForm() *MainForm {
 
 // ApplySettings saves the settings and applies what they change in the window
 func (c *MainForm) ApplySettings(s config.Settings) {
+	languageChanged := s.Language != config.GetSettings().Language
+	themeChanged := s.Theme != config.GetSettings().Theme
 	if err := config.SetSettings(s); err != nil {
-		ui.ShowMessageBox(c, "Error", err.Error())
+		ui.ShowMessageBox(c, T().Error, err.Error())
+	}
+	if languageChanged {
+		SetLanguage(s.Language)
+	}
+	if themeChanged {
+		ApplyTheme(s.Theme)
 	}
 	c.leftWidget.ApplyColumns()
 	c.Form().SetAlwaysOnTop(s.AlwaysOnTop)
@@ -157,9 +163,18 @@ func (c *MainForm) UpdateTitle() {
 	}
 	// Seen in the taskbar while the window is in the background
 	if c.downCount > 0 {
-		title = fmt.Sprintf("(%d down) %s", c.downCount, title)
+		title = T().DownCount(c.downCount) + " " + title
 	}
 	c.Form().SetTitle(title)
+}
+
+// ApplyLanguage updates the texts that do not follow the language by themselves
+func (c *MainForm) ApplyLanguage() {
+	c.UpdateTitle()
+	c.leftWidget.updateColumnNames()
+	c.leftWidget.timerUpdate()
+	c.details.applyLanguage()
+	c.bottomWidget.timerUpdate()
 }
 
 // RestoreWindowState applies the saved window layout before the form is shown.

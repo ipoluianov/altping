@@ -2,6 +2,7 @@ package forms
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"math"
 	"net/netip"
@@ -39,27 +40,27 @@ const (
 // hostColumns describes the fields in the order of the table columns;
 // the optional ones are shown only when turned on in the settings
 var hostColumns = [colCount]struct {
-	name  string
+	name  func(s *ColumnStrings) string
 	width int
 	shown func(s config.Settings) bool // nil - always
 }{
-	colName:    {"Name", 150, nil},
-	colIP:      {"IP", 140, nil},
-	colTime:    {"Time ms", 90, nil},
-	colLoss:    {"Loss %", 90, nil},
-	colMin:     {"Min ms", 90, func(s config.Settings) bool { return s.ShowMin }},
-	colAvg:     {"Avg ms", 90, nil},
-	colMax:     {"Max ms", 90, nil},
-	colJitter:  {"Jitter ms", 110, func(s config.Settings) bool { return s.ShowJitter }},
-	colSince:   {"Since", 90, func(s config.Settings) bool { return s.ShowSince }},
-	colDetails: {"Details", 200, nil},
+	colName:    {func(s *ColumnStrings) string { return s.Name }, 150, nil},
+	colIP:      {func(s *ColumnStrings) string { return s.IP }, 140, nil},
+	colTime:    {func(s *ColumnStrings) string { return s.Time }, 90, nil},
+	colLoss:    {func(s *ColumnStrings) string { return s.Loss }, 90, nil},
+	colMin:     {func(s *ColumnStrings) string { return s.Min }, 90, func(s config.Settings) bool { return s.ShowMin }},
+	colAvg:     {func(s *ColumnStrings) string { return s.Avg }, 90, nil},
+	colMax:     {func(s *ColumnStrings) string { return s.Max }, 90, nil},
+	colJitter:  {func(s *ColumnStrings) string { return s.Jitter }, 110, func(s config.Settings) bool { return s.ShowJitter }},
+	colSince:   {func(s *ColumnStrings) string { return s.Since }, 90, func(s config.Settings) bool { return s.ShowSince }},
+	colDetails: {func(s *ColumnStrings) string { return s.Details }, 200, nil},
 }
 
 var (
-	colorNotPinged = ui.ColorFromHex("#888888")
-	colorOK        = ui.ColorFromHex("#1ebd1e")
-	colorSlow      = ui.ColorFromHex("#d9b72b")
-	colorFailed    = ui.ColorFromHex("#e6660a")
+	colorNotPinged = themeColors{ui.ColorFromHex("#888888"), ui.ColorFromHex("#7a7a7a")}
+	colorOK        = themeColors{ui.ColorFromHex("#1ebd1e"), ui.ColorFromHex("#178a17")}
+	colorSlow      = themeColors{ui.ColorFromHex("#d9b72b"), ui.ColorFromHex("#a88400")}
+	colorFailed    = themeColors{ui.ColorFromHex("#e6660a"), ui.ColorFromHex("#d05500")}
 )
 
 type LeftWidget struct {
@@ -71,6 +72,10 @@ type LeftWidget struct {
 
 	// The fields shown, one per table column
 	columns []int
+
+	// Shown before the name of a host that beeps when down or back
+	// (config.ConfigHost.Notify), in the colors of the theme
+	iconNotify image.Image
 
 	// Field the rows are sorted by (-1 - config order). The rows are sorted
 	// when a header is clicked, not on every update, so they do not jump around.
@@ -91,6 +96,7 @@ func NewLeftWidget() *LeftWidget {
 
 	c.sortColumn = -1
 	c.lvItems.SetSelectingRows(true)
+	c.applyTheme()
 	c.ApplyColumns()
 	c.lvItems.SetOnColumnClick(c.onColumnClick)
 
@@ -98,17 +104,23 @@ func NewLeftWidget() *LeftWidget {
 
 	// Right click selects the row under the mouse (unless it is already selected) and shows the menu
 	menu := ui.NewContextMenu(c.lvItems)
-	menu.AddItem("Edit... (E)", func() { lastCreatedTopWidget.onBtnEditItem() }).SetImage(loadIcon("edit-16"))
-	menu.AddItem("Remove (Del)", func() { lastCreatedTopWidget.onBtnRemoveItem() }).SetImage(loadIcon("remove-16"))
+	edit := menu.AddItem("", func() { lastCreatedTopWidget.onBtnEditItem() })
+	setIcon("edit-16", func(img image.Image) { edit.SetImage(img) })
+	edit.SetTextFunc(func() string { return T().MenuEdit })
+	remove := menu.AddItem("", func() { lastCreatedTopWidget.onBtnRemoveItem() })
+	setIcon("remove-16", func(img image.Image) { remove.SetImage(img) })
+	remove.SetTextFunc(func() string { return T().MenuRemove })
 	menu.AddSeparator()
-	menu.AddItem("Downtime...", func() {
+	menu.AddItem("", func() {
 		if hosts := c.GetSelectedHostConfigs(); len(hosts) > 0 {
-			c.ShowDialog(NewDowntimeDialog(hosts[0]))
+			c.ShowDialog(NewDowntimeDialog(hosts))
 		}
-	})
-	menu.AddItem("Export history...", func() { exportHistory(c.GetSelectedHostConfigs()) })
+	}).SetTextFunc(func() string { return T().MenuDowntime })
+	menu.AddItem("", func() { exportHistory(c.GetSelectedHostConfigs()) }).SetTextFunc(func() string { return T().MenuExport })
 	menu.AddSeparator()
-	menu.AddItemWithSubmenu("Change selected", c.newChangeMenu())
+	menu.AddItemWithSubmenu("", c.newChangeMenu()).SetTextFunc(func() string { return T().MenuChange })
+	// Only one host is edited at a time
+	menu.SetOnShow(func() { edit.SetVisible(len(c.GetSelectedHostConfigs()) == 1) })
 	c.lvItems.SetContextMenu(menu)
 
 	// Double click edits the host, like Enter and E
@@ -130,6 +142,35 @@ func NewLeftWidget() *LeftWidget {
 	c.SetPanelPadding(0)
 
 	return &c
+}
+
+// applyTheme selects the rows with the soft selection color of the theme
+// instead of the accent one: the colors of the host states stay readable on it
+func (c *LeftWidget) applyTheme() {
+	c.lvItems.SetProp("background_selected_cell", ui.ColorToHex(ui.CurrentPalette().Selection))
+	c.iconNotify = loadIcon("bell-16")
+	c.updateNotifyIcons()
+}
+
+// notifyIconSize is the width of the bell before the host names
+const notifyIconSize = 16
+
+// noNotifyIcon keeps the place of the bell, so the names stay aligned
+var noNotifyIcon = image.NewNRGBA(image.Rect(0, 0, notifyIconSize, notifyIconSize))
+
+// updateNotifyIcons shows the bell before the names of the hosts that beep
+func (c *LeftWidget) updateNotifyIcons() {
+	for row := 0; row < c.lvItems.RowCount(); row++ {
+		host, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
+		if !ok || host == nil {
+			continue
+		}
+		var icon image.Image = noNotifyIcon
+		if host.Notify {
+			icon = c.iconNotify
+		}
+		c.lvItems.SetCellImage(row, 0, icon, notifyIconSize)
+	}
 }
 
 func (c *LeftWidget) FocusTable() {
@@ -188,6 +229,7 @@ func (c *LeftWidget) loadHosts() {
 		c.lvItems.SetCellData2(i, 0, host)
 		c.lvItems.SetCellText2(i, 0, hostDisplayName(host))
 	}
+	c.updateNotifyIcons()
 
 	empty := len(hosts) == 0
 	if c.emptyHint.IsVisible() != empty {
@@ -206,15 +248,19 @@ func newEmptyHint() *ui.Panel {
 	p.SetAutoFillBackground(true)
 	p.SetElevation(-3)
 	p.AddWidget(0, 0, ui.NewVSpacer())
-	for i, text := range []string{"No hosts yet", "Press A to add a host"} {
-		lbl := ui.NewLabel(text)
+	for i, text := range []func() string{
+		func() string { return T().NoHosts },
+		func() string { return T().PressAToAdd },
+	} {
+		lbl := ui.NewLabel("")
+		lbl.SetTextFunc(text)
 		lbl.SetTextAlign(ui.HAlignCenter)
 		lbl.SetXExpandable(true)
 		p.AddWidget(i+1, 0, lbl)
 	}
 	linkRow := ui.NewPanel()
 	linkRow.AddWidget(0, 0, ui.NewHSpacer())
-	linkRow.AddWidget(0, 1, newLinkLabel("How it works", func() { openDocs(p, "empty_list") }))
+	linkRow.AddWidget(0, 1, newLinkLabel(func() string { return T().HowItWorks }, func() { openDocs(p, "empty_list") }))
 	linkRow.AddWidget(0, 2, ui.NewHSpacer())
 	p.AddWidget(3, 0, linkRow)
 	p.AddWidget(4, 0, ui.NewVSpacer())
@@ -224,11 +270,14 @@ func newEmptyHint() *ui.Panel {
 // newChangeMenu changes an option of all the selected hosts at once
 func (c *LeftWidget) newChangeMenu() *ui.ContextMenu {
 	menu := ui.NewContextMenu(c.lvItems)
-	menu.AddItem("Beep on", func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = true }) })
-	menu.AddItem("Beep off", func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = false }) })
+	item := func(text func() string, onClick func()) {
+		menu.AddItem("", onClick).SetTextFunc(text)
+	}
+	item(func() string { return T().BeepOn }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = true }) })
+	item(func() string { return T().BeepOff }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = false }) })
 	menu.AddSeparator()
-	menu.AddItem("Check TCP port...", func() {
-		c.askSelected("Check TCP port", "Port:", func(h *config.ConfigHost) int {
+	item(func() string { return T().CheckTCPPort + "..." }, func() {
+		c.askSelected(T().CheckTCPPort, T().PortLabel, func(h *config.ConfigHost) int {
 			if _, port := h.Target(); port != "" {
 				p, _ := strconv.Atoi(port)
 				return p
@@ -239,23 +288,23 @@ func (c *LeftWidget) newChangeMenu() *ui.ContextMenu {
 			h.Port = v
 		})
 	})
-	menu.AddItem("Use ping", func() {
+	item(func() string { return T().UsePing }, func() {
 		c.changeSelected(func(h *config.ConfigHost) {
 			h.Hostname, _ = h.Target()
 			h.Port = 0
 		})
 	})
 	menu.AddSeparator()
-	menu.AddItem("Ping every...", func() {
-		c.askSelected("Ping every", "Ping every, ms:", func(h *config.ConfigHost) int { return int(h.Interval().Milliseconds()) },
+	item(func() string { return T().PingEvery + "..." }, func() {
+		c.askSelected(T().PingEvery, T().PingEveryMs, func(h *config.ConfigHost) int { return int(h.Interval().Milliseconds()) },
 			config.MinIntervalMs, config.MaxIntervalMs, 100, func(h *config.ConfigHost, v int) { h.IntervalMs = storedMs(v, config.DefaultIntervalMs) })
 	})
-	menu.AddItem("Timeout...", func() {
-		c.askSelected("Timeout", "Timeout, ms:", func(h *config.ConfigHost) int { return int(h.Timeout().Milliseconds()) },
+	item(func() string { return T().Timeout + "..." }, func() {
+		c.askSelected(T().Timeout, T().TimeoutMs, func(h *config.ConfigHost) int { return int(h.Timeout().Milliseconds()) },
 			config.MinTimeoutMs, config.MaxTimeoutMs, 100, func(h *config.ConfigHost, v int) { h.TimeoutMs = storedMs(v, config.DefaultTimeoutMs) })
 	})
-	menu.AddItem("Slow above...", func() {
-		c.askSelected("Slow above", "Slow above, ms (0 - off):", func(h *config.ConfigHost) int { return h.SlowMs },
+	item(func() string { return T().SlowAbove + "..." }, func() {
+		c.askSelected(T().SlowAbove, T().SlowAboveMsOff, func(h *config.ConfigHost) int { return h.SlowMs },
 			0, config.MaxSlowMs, 10, func(h *config.ConfigHost, v int) { h.SlowMs = v })
 	})
 	return menu
@@ -292,7 +341,7 @@ func (c *LeftWidget) changeSelected(change func(h *config.ConfigHost)) {
 		change(h)
 	}
 	if err := config.Get().Save(); err != nil {
-		ui.ShowMessageBox(c, "Error", err.Error())
+		ui.ShowMessageBox(c, T().Error, err.Error())
 	}
 	c.loadHosts()
 	system.Get().SyncHosts()
@@ -354,7 +403,7 @@ func (c *LeftWidget) onColumnClick(index int) {
 // updateColumnNames marks the sort column with an arrow
 func (c *LeftWidget) updateColumnNames() {
 	for i, field := range c.columns {
-		name := hostColumns[field].name
+		name := hostColumns[field].name(&T().Columns)
 		if field == c.sortColumn {
 			if c.sortDesc {
 				name += " ▼"
@@ -403,7 +452,7 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 		failed:    state.LastError != nil,
 		ip:        state.StatIP,
 		time:      state.PingTime,
-		details:   "OK",
+		details:   T().StateOK,
 	}
 	if history := system.Get().GetHostHistory(h.ID); history != nil {
 		r.stats = history.Stats(time.Now().Add(-statsPeriod))
@@ -412,11 +461,11 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 	if r.failed {
 		switch state.LastError.Error() {
 		case "timeout":
-			r.details = "TIMEOUT"
+			r.details = T().StateTimeout
 		case "cannot resolve hostname":
-			r.details = "CANNOT RESOLVE HOSTNAME"
+			r.details = T().StateNoResolve
 		case "port closed":
-			r.details = "PORT CLOSED"
+			r.details = T().StatePortClosed
 		default:
 			r.details = state.LastError.Error()
 		}
@@ -460,29 +509,30 @@ func (r hostRow) texts() [colCount]string {
 
 // formatSince shows how long ago in the largest two units: 45s, 12m 5s, 3h 20m, 2d 4h
 func formatSince(d time.Duration) string {
+	u := T().Units
 	sec := int(d.Seconds())
 	switch {
 	case sec < 60:
-		return fmt.Sprintf("%ds", sec)
+		return fmt.Sprintf("%d%s", sec, u.Second)
 	case sec < 3600:
-		return fmt.Sprintf("%dm %ds", sec/60, sec%60)
+		return fmt.Sprintf("%d%s %d%s", sec/60, u.Minute, sec%60, u.Second)
 	case sec < 86400:
-		return fmt.Sprintf("%dh %dm", sec/3600, sec%3600/60)
+		return fmt.Sprintf("%d%s %d%s", sec/3600, u.Hour, sec%3600/60, u.Minute)
 	}
-	return fmt.Sprintf("%dd %dh", sec/86400, sec%86400/3600)
+	return fmt.Sprintf("%d%s %d%s", sec/86400, u.Day, sec%86400/3600, u.Hour)
 }
 
 // color shows the state of the host: not pinged yet, replies, replies slowly, failed
 func (r hostRow) color(settings config.Settings) color.Color {
 	switch {
 	case r.failed:
-		return colorFailed
+		return colorFailed.get()
 	case !r.processed:
-		return colorNotPinged
+		return colorNotPinged.get()
 	case r.slowMs > 0 && r.stats.Sent > r.stats.Lost && r.stats.Avg > time.Duration(r.slowMs)*time.Millisecond:
-		return colorSlow
+		return colorSlow.get()
 	}
-	return colorOK
+	return colorOK.get()
 }
 
 // formatMs shows short times with a decimal, e.g. 0.4 for a LAN host

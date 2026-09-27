@@ -52,18 +52,18 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.panelButtons = ui.NewPanel()
 	c.AddWidget(2, 0, c.panelButtons)
 
-	c.btnOK = ui.NewButton("OK")
+	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
 	c.btnOK.SetOnClick(c.Accept)
-	c.btnCancel = ui.NewButton("Cancel")
+	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
 	c.btnCancel.SetOnClick(c.Reject)
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
 	c.panelButtons.AddWidget(0, 1, c.btnOK)
 	c.panelButtons.AddWidget(0, 2, c.btnCancel)
 
-	c.lblName = ui.NewLabel("Name:")
+	c.lblName = ui.NewLabel(T().Name)
 	c.txtName = ui.NewTextBox()
 	c.txtName.SetText(c.hostConfig.DisplayName)
 	c.panelContent.AddWidget(0, 0, c.lblName)
@@ -72,15 +72,15 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	// An old "example.com:443" in Hostname is shown as the host and the port
 	host, port := c.hostConfig.Target()
 
-	c.lblHost = ui.NewLabel("Host:")
+	c.lblHost = ui.NewLabel(T().Host)
 	c.txtHost = ui.NewTextBox()
 	c.txtHost.SetText(host)
 	c.panelContent.AddWidget(1, 0, c.lblHost)
 	c.panelContent.AddWidget(1, 1, c.txtHost)
 
 	// Check a TCP port instead of ping: the checkbox enables the port field
-	c.chkPort = ui.NewCheckbox("Check instead of ping")
-	c.lblPort = ui.NewLabel("Port:")
+	c.chkPort = ui.NewCheckbox(T().CheckInstead)
+	c.lblPort = ui.NewLabel(T().Port)
 	c.numPort = ui.NewNumBox()
 	c.numPort.SetDecimals(0)
 	c.numPort.SetMin(1)
@@ -93,31 +93,31 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	}
 	c.showPortRow()
 	c.chkPort.SetOnStateChanged(c.showPortRow)
-	c.panelContent.AddWidget(2, 0, ui.NewLabel("TCP port:"))
+	c.panelContent.AddWidget(2, 0, ui.NewLabel(T().TCPPort))
 	c.panelContent.AddWidget(2, 1, c.chkPort)
 	c.panelContent.AddWidget(3, 0, c.lblPort)
 	c.panelContent.AddWidget(3, 1, c.numPort)
 
 	c.numInterval = newMsBox(c.hostConfig.Interval().Milliseconds(), config.MinIntervalMs, config.MaxIntervalMs)
-	lblInterval := ui.NewLabel("Ping every, ms:")
+	lblInterval := ui.NewLabel(T().PingEveryMs)
 	c.panelContent.AddWidget(4, 0, lblInterval)
 	c.panelContent.AddWidget(4, 1, c.numInterval)
 
 	c.numTimeout = newMsBox(c.hostConfig.Timeout().Milliseconds(), config.MinTimeoutMs, config.MaxTimeoutMs)
-	c.panelContent.AddWidget(5, 0, ui.NewLabel("Timeout, ms:"))
+	c.panelContent.AddWidget(5, 0, ui.NewLabel(T().TimeoutMs))
 	c.panelContent.AddWidget(5, 1, c.numTimeout)
 
 	c.numSlow = newMsBox(int64(c.hostConfig.SlowMs), 0, config.MaxSlowMs)
-	lblSlow := ui.NewLabel("Slow above, ms:")
-	lblSlow.SetTooltip("Show the host in yellow when its average ping time is above it. 0 - off")
-	c.numSlow.SetTooltip("Show the host in yellow when its average ping time is above it. 0 - off")
+	lblSlow := ui.NewLabel(T().SlowAboveMs)
+	lblSlow.SetTooltip(T().SlowTooltip)
+	c.numSlow.SetTooltip(T().SlowTooltip)
 	c.panelContent.AddWidget(6, 0, lblSlow)
 	c.panelContent.AddWidget(6, 1, c.numSlow)
 
-	c.chkNotify = ui.NewCheckbox("Beep when down or back")
+	c.chkNotify = ui.NewCheckbox(T().BeepDownBack)
 	c.chkNotify.SetChecked(c.hostConfig.Notify)
-	c.chkNotify.SetTooltip("Down means 3 failed pings in a row. The window title shows how many such hosts are down.")
-	c.panelContent.AddWidget(7, 0, ui.NewLabel("Notify:"))
+	c.chkNotify.SetTooltip(T().NotifyTooltip)
+	c.panelContent.AddWidget(7, 0, ui.NewLabel(T().Notify))
 	c.panelContent.AddWidget(7, 1, c.chkNotify)
 
 	c.OnDialogShow = func() {

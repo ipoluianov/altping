@@ -1,8 +1,6 @@
 package forms
 
 import (
-	"image/color"
-
 	"github.com/ipoluianov/altping/app"
 	"github.com/ipoluianov/altping/system"
 	"github.com/ipoluianov/nui/ui"
@@ -22,9 +20,9 @@ func NewBottomWidget() *BottomWidget {
 	c.AddWidget(0, 0, c.lblStatus)
 	c.AddWidget(0, 1, ui.NewHSpacer())
 	links := []*ui.Label{
-		newLinkLabel("Settings", func() { lastCreatedMainWidget.ShowSettings() }),
-		newLinkLabel("Help", func() { openDocs(&c, "help") }),
-		newLinkLabel("About", c.onAbout),
+		newLinkLabel(func() string { return T().Settings }, func() { lastCreatedMainWidget.ShowSettings() }),
+		newLinkLabel(func() string { return T().Help }, func() { openDocs(&c, "help") }),
+		newLinkLabel(func() string { return T().About }, c.onAbout),
 	}
 	for i, lbl := range links {
 		if i > 0 {
@@ -40,11 +38,13 @@ func NewBottomWidget() *BottomWidget {
 	return &c
 }
 
-// newLinkLabel creates a hyperlink-style label that calls onClick on left click
-func newLinkLabel(text string, onClick func()) *ui.Label {
-	lbl := ui.NewLabel(text)
+// newLinkLabel creates a hyperlink-style label with the text from text() that calls onClick on left click
+func newLinkLabel(text func() string, onClick func()) *ui.Label {
+	lbl := ui.NewLabel("")
+	lbl.SetTextFunc(text)
 	lbl.SetUnderline(true)
-	lbl.SetForegroundColor(color.RGBA{0x3D, 0x8B, 0xF2, 0xFF})
+	lbl.SetForegroundColor(colorLink.get())
+	linkLabels = append(linkLabels, lbl)
 	lbl.SetMouseCursor(ui.MouseCursorPointer)
 	lbl.SetOnMouseDown(func(button ui.MouseButton, x int, y int, mods ui.KeyModifiers) bool {
 		if button != ui.MouseButtonLeft {
@@ -59,7 +59,7 @@ func newLinkLabel(text string, onClick func()) *ui.Label {
 // openDocs opens the docs on the site; campaign tells which place in the app the visit came from
 func openDocs(parent ui.Widgeter, campaign string) {
 	if err := app.OpenSiteURL(app.DocsURL, campaign); err != nil {
-		ui.ShowMessageBox(parent, "Error", err.Error())
+		ui.ShowMessageBox(parent, T().Error, err.Error())
 	}
 }
 
@@ -70,10 +70,10 @@ func (c *BottomWidget) onAbout() {
 func (c *BottomWidget) timerUpdate() {
 	mode := system.Get().PingServerMode()
 	if mode == "udp" {
-		mode = "UDP Mode"
+		mode = T().ModeUDP
 	}
 	if mode == "icmp" {
-		mode = "ICMP Mode"
+		mode = T().ModeICMP
 	}
 	c.lblStatus.SetText(mode)
 }

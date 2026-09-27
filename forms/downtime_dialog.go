@@ -1,8 +1,8 @@
 package forms
 
 import (
-	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ipoluianov/altping/config"
@@ -10,51 +10,84 @@ import (
 	"github.com/ipoluianov/nui/ui"
 )
 
-// DowntimeDialog lists the periods of the last day when a host did not reply
+// DowntimeDialog lists the periods of the last day when the hosts did not
+// reply; for several hosts the outages of all of them together, with the
+// host of each
 type DowntimeDialog struct {
 	ui.DialogContent
 
 	btnClose *ui.Button
 }
 
-func NewDowntimeDialog(host *config.ConfigHost) *DowntimeDialog {
+// hostOutage is an outage of the host
+type hostOutage struct {
+	host *config.ConfigHost
+	system.Outage
+}
+
+// downtimeTitleHosts is how many host names the title lists
+const downtimeTitleHosts = 3
+
+func NewDowntimeDialog(hosts []*config.ConfigHost) *DowntimeDialog {
 	var c DowntimeDialog
 	c.InitWidget()
 
-	var outages []system.Outage
-	if history := system.Get().GetHostHistory(host.ID); history != nil {
-		outages = history.Outages(time.Now().Add(-24 * time.Hour))
+	var outages []hostOutage
+	for _, h := range hosts {
+		if history := system.Get().GetHostHistory(h.ID); history != nil {
+			for _, o := range history.Outages(time.Now().Add(-24 * time.Hour)) {
+				outages = append(outages, hostOutage{host: h, Outage: o})
+			}
+		}
 	}
-	slices.Reverse(outages) // the latest first
+	// The latest first
+	slices.SortStableFunc(outages, func(a, b hostOutage) int { return b.Start.Compare(a.Start) })
+	group := len(hosts) > 1
 
 	if len(outages) == 0 {
-		lbl := ui.NewLabel("No downtime in the last 24 hours")
+		lbl := ui.NewLabel(T().NoDowntime)
 		lbl.SetTextAlign(ui.HAlignCenter)
 		lbl.SetXExpandable(true)
 		c.AddWidget(0, 0, ui.NewVSpacer())
 		c.AddWidget(1, 0, lbl)
 		c.AddWidget(2, 0, ui.NewVSpacer())
 	} else {
-		c.AddWidget(0, 0, ui.NewLabel(downTimesText(len(outages))))
-		table := ui.NewTable()
-		table.SetSelectingRows(true)
-		table.SetColumnCount(3)
-		for i, col := range []struct {
+		summary := T().DownTimes(len(outages))
+		if group {
+			summary = T().GroupDownTimes(len(outages))
+		}
+		c.AddWidget(0, 0, ui.NewLabel(summary))
+
+		columns := []struct {
 			name  string
 			width int
-		}{{"Started", 180}, {"Ended", 180}, {"Duration", 120}} {
+		}{{T().Started, 180}, {T().Ended, 180}, {T().Duration, 120}}
+		if group {
+			columns = slices.Insert(columns, 0, struct {
+				name  string
+				width int
+			}{T().Columns.Name, 160})
+		}
+		table := ui.NewTable()
+		table.SetSelectingRows(true)
+		table.SetColumnCount(len(columns))
+		for i, col := range columns {
 			table.SetColumnName(i, col.name)
 			table.SetColumnWidth(i, col.width)
 		}
 		table.SetRowCount(len(outages))
 		for row, o := range outages {
-			table.SetCellText2(row, 0, formatDowntimeTime(o.Start))
+			cells := []string{formatDowntimeTime(o.Start)}
 			if o.Ongoing {
-				table.SetCellText2(row, 1, "still down")
-				table.SetCellText2(row, 2, formatSince(time.Since(o.Start)))
+				cells = append(cells, T().StillDown, formatSince(time.Since(o.Start)))
 			} else {
-				table.SetCellText2(row, 1, formatDowntimeTime(o.End))
-				table.SetCellText2(row, 2, formatSince(o.End.Sub(o.Start)))
+				cells = append(cells, formatDowntimeTime(o.End), formatSince(o.End.Sub(o.Start)))
+			}
+			if group {
+				cells = slices.Insert(cells, 0, hostDisplayName(o.host))
+			}
+			for col, text := range cells {
+				table.SetCellText2(row, col, text)
 			}
 		}
 		c.AddWidget(1, 0, table)
@@ -62,14 +95,18 @@ func NewDowntimeDialog(host *config.ConfigHost) *DowntimeDialog {
 
 	buttons := ui.NewPanel()
 	c.AddWidget(3, 0, buttons)
-	c.btnClose = ui.NewButton("Close")
+	c.btnClose = ui.NewButton(T().Close)
 	c.btnClose.SetOnClick(func() { c.Form().Close() })
 	buttons.AddWidget(0, 0, ui.NewHSpacer())
 	buttons.AddWidget(0, 1, c.btnClose)
 
 	c.OnDialogShow = func() {
-		c.Form().SetTitle("Downtime - " + hostDisplayName(host))
-		c.Form().SetSize(540, 400)
+		c.Form().SetTitle(T().DowntimeTitle + " - " + downtimeTitleNames(hosts))
+		width := 540
+		if group {
+			width += 160
+		}
+		c.Form().SetSize(width, 400)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnClose)
 		c.Form().SetCancelButton(c.btnClose)
@@ -77,18 +114,23 @@ func NewDowntimeDialog(host *config.ConfigHost) *DowntimeDialog {
 	return &c
 }
 
+// downtimeTitleNames lists the first hosts for the title
+func downtimeTitleNames(hosts []*config.ConfigHost) string {
+	names := make([]string, 0, downtimeTitleHosts)
+	for i, h := range hosts {
+		if i == downtimeTitleHosts {
+			names = append(names, "…")
+			break
+		}
+		names = append(names, hostDisplayName(h))
+	}
+	return strings.Join(names, ", ")
+}
+
 // formatDowntimeTime shows the time, with the date when it is not today
 func formatDowntimeTime(t time.Time) string {
 	if y, m, d := t.Date(); y == time.Now().Year() && m == time.Now().Month() && d == time.Now().Day() {
 		return t.Format("15:04:05")
 	}
-	return t.Format("Jan 2 15:04:05")
-}
-
-// downTimesText says how many times the host was down
-func downTimesText(n int) string {
-	if n == 1 {
-		return "Down once in the last 24 hours:"
-	}
-	return fmt.Sprintf("Down %d times in the last 24 hours:", n)
+	return t.Format(T().DateTimeLayout)
 }

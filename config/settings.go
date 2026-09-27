@@ -15,6 +15,12 @@ type Settings struct {
 	ShowSince  bool
 
 	AlwaysOnTop bool
+
+	// Language of the interface as a tag like "ru"; "" - the system's
+	Language string `json:",omitempty"`
+
+	// Color theme: "light"; "" - the dark one
+	Theme string `json:",omitempty"`
 }
 
 // Limits of the per-host options, see ConfigHost

@@ -15,6 +15,10 @@ type SettingsDialog struct {
 
 	chkOnTop *ui.Checkbox
 
+	// The first item is the system language, then the languages list
+	cmbLanguage *ui.ComboBox
+	cmbTheme    *ui.ComboBox
+
 	btnOK     *ui.Button
 	btnCancel *ui.Button
 
@@ -41,24 +45,51 @@ func NewSettingsDialog(settings config.Settings, onAccept func(config.Settings))
 		row++
 		return chk
 	}
-	checks.AddWidget(row, 0, ui.NewLabel("Extra columns:"))
+	checks.AddWidget(row, 0, ui.NewLabel(T().ExtraColumns))
 	row++
-	c.chkMin = addCheck("Min", settings.ShowMin)
-	c.chkJitter = addCheck("Jitter", settings.ShowJitter)
-	c.chkSince = addCheck("Since (last change)", settings.ShowSince)
-	c.chkOnTop = addCheck("Always on top", settings.AlwaysOnTop)
+	c.chkMin = addCheck(T().ShowMin, settings.ShowMin)
+	c.chkJitter = addCheck(T().ShowJitter, settings.ShowJitter)
+	c.chkSince = addCheck(T().ShowSince, settings.ShowSince)
+	c.chkOnTop = addCheck(T().AlwaysOnTop, settings.AlwaysOnTop)
 
-	c.btnOK = ui.NewButton("OK")
+	// Label and combo box rows, the combo boxes aligned in a column
+	choices := ui.NewPanel()
+	choices.SetPanelPadding(0)
+	checks.AddWidget(row, 0, choices)
+	choices.AddWidget(0, 0, ui.NewLabel(T().Language))
+	c.cmbLanguage = ui.NewComboBox()
+	c.cmbLanguage.AddItem(T().LanguageSystem, "")
+	c.cmbLanguage.SetSelectedIndex(0)
+	for i, l := range languages {
+		c.cmbLanguage.AddItem(l.name, l.tag)
+		if l.tag == settings.Language {
+			c.cmbLanguage.SetSelectedIndex(i + 1)
+		}
+	}
+	choices.AddWidget(0, 1, c.cmbLanguage)
+	choices.AddWidget(0, 2, ui.NewHSpacer())
+
+	choices.AddWidget(1, 0, ui.NewLabel(T().Theme))
+	c.cmbTheme = ui.NewComboBox()
+	c.cmbTheme.AddItem(T().ThemeDark, themeDark)
+	c.cmbTheme.AddItem(T().ThemeLight, themeLight)
+	c.cmbTheme.SetSelectedIndex(0)
+	if settings.Theme == themeLight {
+		c.cmbTheme.SetSelectedIndex(1)
+	}
+	choices.AddWidget(1, 1, c.cmbTheme)
+
+	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.btnOK.SetOnClick(c.Accept)
-	c.btnCancel = ui.NewButton("Cancel")
+	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
 	c.btnCancel.SetOnClick(c.Cancel)
 	buttons.AddWidget(0, 0, ui.NewHSpacer())
 	buttons.AddWidget(0, 1, c.btnOK)
 	buttons.AddWidget(0, 2, c.btnCancel)
 
 	c.OnDialogShow = func() {
-		c.Form().SetTitle("Settings")
-		c.Form().SetSize(420, 290)
+		c.Form().SetTitle(T().Settings)
+		c.Form().SetSize(420, 370)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
@@ -72,6 +103,8 @@ func (c *SettingsDialog) Accept() {
 	s.ShowJitter = c.chkJitter.Checked()
 	s.ShowSince = c.chkSince.Checked()
 	s.AlwaysOnTop = c.chkOnTop.Checked()
+	s.Language, _ = c.cmbLanguage.SelectedItemData().(string)
+	s.Theme, _ = c.cmbTheme.SelectedItemData().(string)
 	// The callback changes the window below: it runs on its goroutine
 	if c.onAccept != nil {
 		c.RunInParent(func() { c.onAccept(s) })

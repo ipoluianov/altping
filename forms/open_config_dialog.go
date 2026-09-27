@@ -39,20 +39,20 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 	c.panelButtons = ui.NewPanel()
 	c.AddWidget(1, 0, c.panelButtons)
 
-	c.btnNew = ui.NewButton("New...")
+	c.btnNew = ui.NewButton(T().NewConfig)
 	c.btnNew.SetOnClick(c.CreateConfig)
-	c.btnSaveAs = ui.NewButton("Save As...")
+	c.btnSaveAs = ui.NewButton(T().SaveConfigAs)
 	c.btnSaveAs.SetOnClick(c.SaveOpenedConfigAs)
-	c.btnRemove = ui.NewButton("Remove")
+	c.btnRemove = ui.NewButton(T().RemoveConfig)
 	c.btnRemove.SetOnClick(c.RemoveSelectedConfig)
 
-	c.btnOK = ui.NewButton("OK")
+	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
 	c.btnOK.SetOnClick(func() {
 		c.Accept()
 	})
-	c.btnCancel = ui.NewButton("Cancel")
+	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
 	c.btnCancel.SetOnClick(func() {
 		c.Cancel()
 	})
@@ -66,16 +66,16 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingRows(true)
-	c.panelContent.AddWidget(0, 0, ui.NewLabel("Configs:"))
+	c.panelContent.AddWidget(0, 0, ui.NewLabel(T().Configs))
 	c.panelContent.AddWidget(1, 0, c.lvConfigs)
 
 	c.lvConfigs.SetColumnCount(3)
 	c.lvConfigs.SetColumnWidth(0, 200)
 	c.lvConfigs.SetColumnWidth(1, 100)
 	c.lvConfigs.SetColumnWidth(2, 500)
-	c.lvConfigs.SetColumnName(0, "Name")
-	c.lvConfigs.SetColumnName(1, "Hosts Count")
-	c.lvConfigs.SetColumnName(2, "Hosts")
+	c.lvConfigs.SetColumnName(0, T().Columns.Name)
+	c.lvConfigs.SetColumnName(1, T().HostsCount)
+	c.lvConfigs.SetColumnName(2, T().Hosts)
 
 	c.lvConfigs.SetOnCellMouseDblClick(c.onConfigDoubleClick)
 
@@ -88,7 +88,7 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 	})
 
 	c.OnDialogShow = func() {
-		c.Form().SetTitle("Open Config")
+		c.Form().SetTitle(T().ConfigsTitle)
 		c.lvConfigs.Focus()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
@@ -101,13 +101,13 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 
 // CreateConfig creates an empty config and selects it in the table
 func (c *OpenConfigDialog) CreateConfig() {
-	c.ShowDialog(NewCreateConfigDialog("New Config", "", func(name string) {
+	c.ShowDialog(NewCreateConfigDialog(T().NewConfigTitle, "", func(name string) {
 		if name == "" {
 			return
 		}
 		cfg, err := config.CreateNewConfig(name)
 		if err != nil {
-			ui.ShowMessageBox(c, "Error", err.Error())
+			ui.ShowMessageBox(c, T().Error, err.Error())
 			return
 		}
 		c.LoadTableSelectID(cfg.ID)
@@ -120,13 +120,13 @@ func (c *OpenConfigDialog) CreateConfig() {
 // SaveOpenedConfigAs saves a copy of the opened config under a new name and selects it in the table
 func (c *OpenConfigDialog) SaveOpenedConfigAs() {
 	opened := config.Get()
-	c.ShowDialog(NewCreateConfigDialog("Save Config As", opened.Name+" copy", func(name string) {
+	c.ShowDialog(NewCreateConfigDialog(T().SaveConfigAsTitle, opened.Name+T().CopySuffix, func(name string) {
 		if name == "" {
 			return
 		}
 		cfg, err := config.CopyConfig(opened, name)
 		if err != nil {
-			ui.ShowMessageBox(c, "Error", err.Error())
+			ui.ShowMessageBox(c, T().Error, err.Error())
 			return
 		}
 		c.LoadTableSelectID(cfg.ID)
@@ -137,12 +137,12 @@ func (c *OpenConfigDialog) SaveOpenedConfigAs() {
 }
 
 func (c *OpenConfigDialog) RemoveSelectedConfig() {
-	ui.ShowQuestionMessageBoxOKCancel(c, "Remove config", "Remove the selected config?", func() {
+	ui.ShowQuestionMessageBoxOKCancel(c, T().RemoveConfigTitle, T().RemoveConfigAsk, func() {
 		selectedConfigIndex := c.lvConfigs.CurrentRow()
 		selectedConfig := c.GetSelectedConfig()
 
 		if selectedConfig != nil && selectedConfig.ID == c.openedConfigId {
-			ui.ShowMessageBox(c, "Error", "Cannot remove the currently opened config.")
+			ui.ShowMessageBox(c, T().Error, T().CannotRemoveOpened)
 			return
 		}
 
@@ -169,7 +169,7 @@ func (c *OpenConfigDialog) LoadTable(selectedConfigIndex int) {
 		}
 		c.lvConfigs.SetCellText2(i, 2, strings.Join(hostnames, ", "))
 
-		c.lvConfigs.SetCellColor(i, 2, ui.ColorFromHex("#555555"))
+		c.lvConfigs.SetCellColor(i, 2, colorSecondaryText.get())
 	}
 
 	// After removing the last row select the new last one

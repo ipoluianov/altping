@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 
@@ -31,17 +30,31 @@ func NewTopWidget() *TopWidget {
 	c.InitWidget()
 	c.SetPanelPadding(0)
 
-	c.btnOpen = ui.NewToolButton(loadIcon("open"), "Configurations (O)", c.onBtnOpen)
+	c.btnOpen = ui.NewToolButton(nil, "", c.onBtnOpen)
+	setIcon("open", c.btnOpen.SetImage)
+	c.btnOpen.SetTooltipFunc(func() string { return T().ToolConfigs })
 
-	c.btnAddItem = ui.NewToolButton(loadIcon("add"), "Add host (A)", c.onBtnAddItem)
+	c.btnAddItem = ui.NewToolButton(nil, "", c.onBtnAddItem)
+	setIcon("add", c.btnAddItem.SetImage)
+	c.btnAddItem.SetTooltipFunc(func() string { return T().ToolAddHost })
 	// The main action: twice as wide as the other buttons
 	c.btnAddItem.SetButtonSize(ui.ToolButtonDefaultSize*2, ui.ToolButtonDefaultSize)
-	c.btnEditItem = ui.NewToolButton(loadIcon("edit"), "Edit host (E)", c.onBtnEditItem)
-	c.btnRemoveItem = ui.NewToolButton(loadIcon("remove"), "Remove selected hosts (Del)", c.onBtnRemoveItem)
+	c.btnEditItem = ui.NewToolButton(nil, "", c.onBtnEditItem)
+	setIcon("edit", c.btnEditItem.SetImage)
+	c.btnEditItem.SetTooltipFunc(func() string { return T().ToolEditHost })
+	c.btnRemoveItem = ui.NewToolButton(nil, "", c.onBtnRemoveItem)
+	setIcon("remove", c.btnRemoveItem.SetImage)
+	c.btnRemoveItem.SetTooltipFunc(func() string { return T().ToolRemoveHosts })
 
-	c.btnDetails = ui.NewToolButton(loadIcon("details"), "Details (D)", c.onBtnDetails)
-	c.btnStart = ui.NewToolButton(loadIcon("start"), "Start pinging", c.onBtnStart)
-	c.btnStop = ui.NewToolButton(loadIcon("stop"), "Stop pinging", c.onBtnStop)
+	c.btnDetails = ui.NewToolButton(nil, "", c.onBtnDetails)
+	setIcon("details", c.btnDetails.SetImage)
+	c.btnDetails.SetTooltipFunc(func() string { return T().ToolDetails })
+	c.btnStart = ui.NewToolButton(nil, "", c.onBtnStart)
+	setIcon("start", c.btnStart.SetImage)
+	c.btnStart.SetTooltipFunc(func() string { return T().ToolStart })
+	c.btnStop = ui.NewToolButton(nil, "", c.onBtnStop)
+	setIcon("stop", c.btnStop.SetImage)
+	c.btnStop.SetTooltipFunc(func() string { return T().ToolStop })
 
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
@@ -75,6 +88,11 @@ func (c *TopWidget) timerUpdate() {
 		c.btnStop.SetEnabled(false)
 	}
 
+	// Only one host is edited at a time
+	if lastCreatedLeftWidget != nil {
+		c.btnEditItem.SetEnabled(len(lastCreatedLeftWidget.GetSelectedHostConfigs()) == 1)
+	}
+
 	// An empty config: point to the first thing to do
 	if len(config.Get().Hosts) == 0 {
 		c.btnAddItem.SetHighlight(addHighlightColor)
@@ -93,7 +111,7 @@ func (c *TopWidget) onBtnOpen() {
 			system.Get().Stop()
 			err := config.LoadConfig(selectedConfigId)
 			if err != nil {
-				ui.ShowMessageBox(c, "Error", err.Error())
+				ui.ShowMessageBox(c, T().Error, err.Error())
 				system.Get().Start()
 				return
 			}
@@ -207,7 +225,7 @@ func (c *TopWidget) onBtnRemoveItem() {
 		return
 	}
 
-	ui.ShowQuestionMessageBoxYesNo(c, "Remove hosts", removeHostsQuestion(selectedHosts), func() {
+	ui.ShowQuestionMessageBoxYesNo(c, T().RemoveHostsTitle, removeHostsQuestion(selectedHosts), func() {
 		// After removing select the row that followed the first removed one
 		firstRow := lastCreatedLeftWidget.RowOfHost(selectedHosts[0].ID)
 		config := config.Get()
@@ -247,13 +265,13 @@ const removeHostsListMax = 10
 func removeHostsQuestion(hosts []*config.ConfigHost) string {
 	var sb strings.Builder
 	if len(hosts) == 1 {
-		sb.WriteString("Remove the host?\n")
+		sb.WriteString(T().RemoveHost + "\n")
 	} else {
-		fmt.Fprintf(&sb, "Remove %d hosts?\n", len(hosts))
+		sb.WriteString(T().RemoveHosts(len(hosts)) + "\n")
 	}
 	for i, h := range hosts {
 		if i == removeHostsListMax {
-			fmt.Fprintf(&sb, "\n... and %d more", len(hosts)-removeHostsListMax)
+			sb.WriteString("\n" + T().AndMore(len(hosts)-removeHostsListMax))
 			break
 		}
 		sb.WriteString("\n" + hostDisplayName(h))

@@ -12,15 +12,8 @@ import (
 // Hosts shown on the chart at once, one area per host
 const detailsMaxHosts = 4
 
-// detailsPeriods are the time ranges the chart can show; the history keeps a day
-var detailsPeriods = []struct {
-	name     string
-	duration time.Duration
-}{
-	{"5m", 5 * time.Minute},
-	{"1h", time.Hour},
-	{"24h", 24 * time.Hour},
-}
+// detailsPeriods are the time ranges the chart can show, named by Strings.Periods; the history keeps a day
+var detailsPeriods = [len(Strings{}.Periods)]time.Duration{5 * time.Minute, time.Hour, 24 * time.Hour}
 
 var lastCreatedDetailsWidget *DetailsWidget
 
@@ -37,6 +30,8 @@ type DetailsWidget struct {
 
 	// IDs of the hosts on the chart, to rebuild it when the selection changes
 	shownHostIDs string
+	// Names of the hosts on the chart, for the title
+	shownHostNames []string
 }
 
 func NewDetailsWidget() *DetailsWidget {
@@ -52,11 +47,11 @@ func NewDetailsWidget() *DetailsWidget {
 	// Differs from any selection, so the first check builds the chart (and the title for no selection)
 	c.shownHostIDs = "-"
 	c.lblTitle.SetXExpandable(true)
-	for i, p := range detailsPeriods {
-		btn := ui.NewButton(p.name)
+	for i, period := range detailsPeriods {
+		btn := ui.NewButton("")
+		btn.SetTextFunc(func() string { return T().Periods[i] })
 		btn.SetMinWidth(48)
-		btn.SetMaxWidth(48)
-		btn.SetOnClick(func() { c.SetPeriod(p.duration) })
+		btn.SetOnClick(func() { c.SetPeriod(period) })
 		header.AddWidget(0, i+1, btn)
 		c.btnPeriods = append(c.btnPeriods, btn)
 	}
@@ -69,7 +64,7 @@ func NewDetailsWidget() *DetailsWidget {
 	c.AddTimer(500, c.timerUpdate)
 
 	lastCreatedDetailsWidget = &c
-	c.SetPeriod(detailsPeriods[0].duration)
+	c.SetPeriod(detailsPeriods[0])
 	return &c
 }
 
@@ -78,7 +73,7 @@ func (c *DetailsWidget) SetPeriod(period time.Duration) {
 	c.period = period
 	for i, btn := range c.btnPeriods {
 		// The active period is highlighted
-		if detailsPeriods[i].duration == period {
+		if detailsPeriods[i] == period {
 			btn.SetRole("primary")
 		} else {
 			btn.SetRole("")
@@ -139,19 +134,30 @@ func (c *DetailsWidget) updateTimeRange() {
 func (c *DetailsWidget) rebuildChart(hosts []*config.ConfigHost) {
 	c.chart.RemoveAllAreas()
 
-	if len(hosts) == 0 {
-		c.lblTitle.SetText("Select a host")
-		return
-	}
-
-	names := make([]string, 0, len(hosts))
+	c.shownHostNames = c.shownHostNames[:0]
 	for _, h := range hosts {
 		name := hostDisplayName(h)
-		names = append(names, name)
+		c.shownHostNames = append(c.shownHostNames, name)
 		area := c.chart.AddArea()
-		area.AddSeries(name+", ms", &historySource{hostID: h.ID}).SetPaletteColor(0)
+		area.AddSeries(name+", "+T().Ms, &historySource{hostID: h.ID}).SetPaletteColor(0)
 	}
-	c.lblTitle.SetText("Ping history: " + strings.Join(names, ", "))
+	c.updateTitle()
+}
+
+// applyLanguage rebuilds the chart with the texts in the new language
+func (c *DetailsWidget) applyLanguage() {
+	c.shownHostIDs = "-"
+	c.updateTitle()
+	c.checkSelection()
+}
+
+// updateTitle names the hosts on the chart; the series names are updated when the chart is rebuilt
+func (c *DetailsWidget) updateTitle() {
+	if len(c.shownHostNames) == 0 {
+		c.lblTitle.SetText(T().SelectAHost)
+		return
+	}
+	c.lblTitle.SetText(T().PingHistory + strings.Join(c.shownHostNames, ", "))
 }
 
 func hostDisplayName(h *config.ConfigHost) string {

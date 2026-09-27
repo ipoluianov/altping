@@ -28,13 +28,13 @@ func NewAboutDialog() *AboutDialog {
 	lblName := ui.NewLabel(app.DisplayName)
 	lblName.SetFontSize(24)
 	lblName.SetTextAlign(ui.HAlignCenter)
-	lblVersion := ui.NewLabel("Version " + app.Version)
+	lblVersion := ui.NewLabel(T().Version + " " + app.Version)
 	lblVersion.SetTextAlign(ui.HAlignCenter)
-	lblAuthor := ui.NewLabel("Author: " + app.Author)
+	lblAuthor := ui.NewLabel(T().Author + " " + app.Author)
 	lblAuthor.SetTextAlign(ui.HAlignCenter)
 	lblCopyright := ui.NewLabel(app.Copyright())
 	lblCopyright.SetTextAlign(ui.HAlignCenter)
-	lblLicense := ui.NewLabel("License: " + app.License)
+	lblLicense := ui.NewLabel(T().License + " " + app.License)
 	lblLicense.SetTextAlign(ui.HAlignCenter)
 	lblWebsite := ui.NewLabel(app.Website)
 	lblWebsite.SetTextAlign(ui.HAlignCenter)
@@ -46,9 +46,9 @@ func NewAboutDialog() *AboutDialog {
 	c.panelContent.AddWidget(4, 0, lblLicense)
 	c.panelContent.AddWidget(5, 0, lblWebsite)
 
-	c.btnWebsite = ui.NewButton("Visit Website")
+	c.btnWebsite = ui.NewButton(T().VisitWebsite)
 	c.btnWebsite.SetOnClick(c.VisitWebsite)
-	c.btnClose = ui.NewButton("Close")
+	c.btnClose = ui.NewButton(T().Close)
 	c.btnClose.SetOnClick(c.Close)
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
@@ -56,7 +56,7 @@ func NewAboutDialog() *AboutDialog {
 	c.panelButtons.AddWidget(0, 2, c.btnClose)
 
 	c.OnDialogShow = func() {
-		c.Form().SetTitle("About " + app.DisplayName)
+		c.Form().SetTitle(T().AboutTitle(app.DisplayName))
 		c.Form().SetSize(400, 300)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnClose)
@@ -68,7 +68,7 @@ func NewAboutDialog() *AboutDialog {
 
 func (c *AboutDialog) VisitWebsite() {
 	if err := app.OpenSiteURL(app.Website, "about_dialog"); err != nil {
-		ui.ShowMessageBox(c, "Error", err.Error())
+		ui.ShowMessageBox(c, T().Error, err.Error())
 	}
 }
 

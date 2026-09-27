@@ -9,6 +9,8 @@ import (
 
 func main() {
 	config.Init()
+	forms.SetLanguage(config.GetSettings().Language)
+	forms.ApplyTheme(config.GetSettings().Theme)
 	ui.SetAppIcon(appIcon())
 	form := ui.NewForm()
 	mainForm := forms.NewMainForm()
@@ -21,6 +23,7 @@ func main() {
 	}
 	system.Get().Start()
 	form.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
+	form.SetOnLanguageChanged(mainForm.ApplyLanguage)
 	form.Show()
 	// The form is handled by its own goroutine once shown
 	form.Invoke(func() {
