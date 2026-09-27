@@ -42,6 +42,12 @@ func NewLeftWidget() *LeftWidget {
 
 	c.lvItems.SetMultiselect(true)
 
+	// Right click selects the row under the mouse (unless it is already selected) and shows the menu
+	menu := ui.NewContextMenu(c.lvItems)
+	menu.AddItem("Edit... (E)", func() { lastCreatedTopWidget.onBtnEditItem() }).SetImage(loadIcon("edit-16"))
+	menu.AddItem("Remove (Del)", func() { lastCreatedTopWidget.onBtnRemoveItem() }).SetImage(loadIcon("remove-16"))
+	c.lvItems.SetContextMenu(menu)
+
 	c.loadHosts()
 
 	c.AddTimer(200, c.timerUpdate)
@@ -59,38 +65,44 @@ func (c *LeftWidget) FocusTable() {
 	c.lvItems.Focus()
 }
 
+// FullRestart restarts all the hosts, e.g. after another config is opened
 func (c *LeftWidget) FullRestart() {
 	system.Get().Stop()
 	c.loadHosts()
 	system.Get().Start()
 }
 
+// ApplyHostsChange shows the hosts of the config after they were added, edited or removed.
+// Only the changed hosts are started, stopped or restarted, the others keep running.
+// The row is selected afterwards (clamped to the table).
+func (c *LeftWidget) ApplyHostsChange(selectRow int) {
+	c.loadHosts()
+	system.Get().SyncHosts()
+	c.timerUpdate()
+	selectRow = min(selectRow, c.lvItems.RowCount()-1)
+	if selectRow >= 0 {
+		c.lvItems.SetCurrentCell2(selectRow, 0)
+	}
+}
+
+// RowOfHost returns the table row of the host, -1 if there is none
+func (c *LeftWidget) RowOfHost(id string) int {
+	for row := 0; row < c.lvItems.RowCount(); row++ {
+		if host, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost); ok && host.ID == id {
+			return row
+		}
+	}
+	return -1
+}
+
+// loadHosts fills the table with the hosts of the config;
+// the state columns are filled by timerUpdate
 func (c *LeftWidget) loadHosts() {
 	config := config.Get()
 	c.lvItems.SetRowCount(len(config.Hosts))
 	for i, host := range config.Hosts {
-
-		displayName := host.DisplayName
-		if displayName == "" {
-			displayName = host.Hostname
-		}
-
 		c.lvItems.SetCellData2(i, 0, host)
-		c.lvItems.SetCellText2(i, 0, displayName)
-
-		c.lvItems.SetCellText2(i, 1, "-")
-		c.lvItems.SetCellText2(i, 2, "-")
-		c.lvItems.SetCellText2(i, 3, "-")
-		c.lvItems.SetCellText2(i, 4, "-")
-		c.lvItems.SetCellText2(i, 5, "-")
-
-		col := ui.ColorFromHex("#888888")
-		c.lvItems.SetCellColor(i, 0, col)
-		c.lvItems.SetCellColor(i, 1, col)
-		c.lvItems.SetCellColor(i, 2, col)
-		c.lvItems.SetCellColor(i, 3, col)
-		c.lvItems.SetCellColor(i, 4, col)
-		c.lvItems.SetCellColor(i, 5, col)
+		c.lvItems.SetCellText2(i, 0, hostDisplayName(host))
 	}
 }
 
@@ -101,8 +113,8 @@ func (c *LeftWidget) GetSelectedHostConfigs() []*config.ConfigHost {
 	}
 	hosts := make([]*config.ConfigHost, 0, len(selectedRows))
 	for _, row := range selectedRows {
-		host := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
-		if host != nil {
+		// The selection may still hold rows removed from the table
+		if host, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost); ok && host != nil {
 			hosts = append(hosts, host)
 		}
 	}

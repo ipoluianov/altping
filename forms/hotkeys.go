@@ -7,60 +7,32 @@ import (
 	"github.com/u00io/nuiforms/ui"
 )
 
+// OnGlobalKeyDown handles the application hotkeys. A key with modifiers
+// that is not a hotkey is passed on to the focused widget (e.g. Ctrl+A to the table).
 func OnGlobalKeyDown(key nuikey.Key, mods nuikey.KeyModifiers) bool {
-	if key == nuikey.KeyO {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // O
-			lastCreatedTopWidget.onBtnOpen()
-		}
-		return true
-	}
+	noMods := !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd
+	altOnly := !mods.Shift && mods.Alt && !mods.Ctrl && !mods.Cmd
 
-	if key == nuikey.KeyA {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // N
-			lastCreatedTopWidget.onBtnAddItem()
-		}
-		return true
+	switch {
+	case key == nuikey.KeyO && noMods:
+		lastCreatedTopWidget.onBtnOpen()
+	case key == nuikey.KeyA && noMods:
+		lastCreatedTopWidget.onBtnAddItem()
+	case key == nuikey.KeyE && noMods:
+		lastCreatedTopWidget.onBtnEditItem()
+	case key == nuikey.KeyD && noMods:
+		lastCreatedTopWidget.onBtnDetails()
+	case (key == nuikey.KeyDelete || key == nuikey.KeyBackspace) && noMods:
+		lastCreatedTopWidget.onBtnRemoveItem()
+	case key == nuikey.KeyX && altOnly:
+		lastCreatedMainWidget.Form().Close()
+	case key == nuikey.KeyEsc && noMods && lastCreatedMainWidget.Form().TopPopupWidget() == nil:
+		ui.ShowQuestionMessageBoxOKCancel(lastCreatedMainWidget, "Closing", "Close the application?", func() {
+			os.Exit(0)
+		}, func() {
+		})
+	default:
+		return false
 	}
-
-	if key == nuikey.KeyE {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // E
-			lastCreatedTopWidget.onBtnEditItem()
-		}
-		return true
-	}
-
-	if key == nuikey.KeyD {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // D
-			lastCreatedTopWidget.onBtnDetails()
-		}
-		return true
-	}
-
-	if key == nuikey.KeyDelete || key == nuikey.KeyBackspace {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // Delete or Backspace
-			lastCreatedTopWidget.onBtnRemoveItem()
-		}
-		return true
-	}
-
-	if key == nuikey.KeyX {
-		if !mods.Shift && mods.Alt && !mods.Ctrl && !mods.Cmd { // Alt+X
-			lastCreatedMainWidget.Form().Close()
-		}
-		return true
-	}
-
-	if key == nuikey.KeyEsc {
-		if !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd { // Esc
-			if lastCreatedMainWidget.Form().TopPopupWidget() == nil {
-				ui.ShowQuestionMessageBoxOKCancel(lastCreatedMainWidget, "Closing", "Close the application?", func() {
-					os.Exit(0)
-				}, func() {
-				})
-				return true
-			}
-		}
-	}
-
-	return false
+	return true
 }

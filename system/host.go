@@ -24,10 +24,9 @@ type Host struct {
 
 	lastState HostState
 
-	defaultData map[int][]byte
-	counter     int
-
+	// chanStop is closed to stop the host goroutine, chanDone is closed when it has finished
 	chanStop chan struct{}
+	chanDone chan struct{}
 
 	statOK             int
 	statERR            int
@@ -55,39 +54,50 @@ func NewHost(id string, pingServer *PingServer, history *HostHistory) *Host {
 	c.pingServer = pingServer
 	c.history = history
 
-	c.defaultData = make(map[int][]byte)
-	for s := 0; s < 1500; s++ {
-		d := make([]byte, s)
-		for i := 0; i < s; i++ {
-			d[i] = byte(i%26) + 0x41
-		}
-		c.defaultData[s] = d
-	}
-
 	return &c
 }
 
-func (c *Host) Start(chanStopped chan struct{}) {
+func (c *Host) Start() {
 	c.mtx.Lock()
 	if c.started {
 		c.mtx.Unlock()
 		return
 	}
+	c.started = true
 	c.stopping = false
+	c.chanStop = make(chan struct{})
+	c.chanDone = make(chan struct{})
 	c.mtx.Unlock()
 	c.resetStat()
-	c.chanStop = chanStopped
 	go c.thWork()
 
 	fmt.Println("Host Start", c.configHost.ID)
 }
 
+// Stop stops the host and waits for its goroutine to finish
 func (c *Host) Stop() {
+	c.signalStop()
+	c.waitStopped()
+}
+
+// signalStop asks the host to stop without waiting,
+// so that many hosts can be stopped at once
+func (c *Host) signalStop() {
 	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if !c.started || c.stopping {
+		return
+	}
 	c.stopping = true
+	close(c.chanStop)
+}
+
+func (c *Host) waitStopped() {
+	c.mtx.Lock()
+	chanDone := c.chanDone
 	c.mtx.Unlock()
-	for c.started {
-		time.Sleep(10 * time.Millisecond)
+	if chanDone != nil {
+		<-chanDone
 	}
 }
 
@@ -194,31 +204,25 @@ func (c *Host) addGapToHistory() {
 }
 
 func (c *Host) thWork() {
-	c.mtx.Lock()
-	c.started = true
-	c.mtx.Unlock()
 	c.addGapToHistory()
+	defer func() {
+		c.addGapToHistory()
+		c.mtx.Lock()
+		c.started = false
+		c.mtx.Unlock()
+		close(c.chanDone)
+	}()
 
-	timeout := time.Duration(1000) * time.Millisecond
+	// The first ping goes right away, so a new host shows its state at once
+	timeout := time.Duration(0)
 
 	for {
-		// select with timeout
 		select {
 		case <-time.After(timeout):
 		case <-c.chanStop:
-			c.addGapToHistory()
-			c.mtx.Lock()
-			c.started = false
-			c.mtx.Unlock()
 			return
 		}
-
-		c.mtx.Lock()
-		if !c.started || c.stopping {
-			c.mtx.Unlock()
-			break
-		}
-		c.mtx.Unlock()
+		timeout = time.Duration(1000) * time.Millisecond
 
 		if c.checkIP() {
 			result, peer, err := c.pingServer.PingHost(c.IP, 64, 1000, c.chanStop)
@@ -254,8 +258,4 @@ func (c *Host) thWork() {
 		c.addToHistory()
 		c.updateState()
 	}
-	c.addGapToHistory()
-	c.mtx.Lock()
-	c.started = false
-	c.mtx.Unlock()
 }

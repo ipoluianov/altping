@@ -1,6 +1,9 @@
 package forms
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
 	"github.com/u00io/nuiforms/ui"
@@ -9,15 +12,15 @@ import (
 type TopWidget struct {
 	ui.Widget
 
-	btnOpen *ToolButton
+	btnOpen *ui.ToolButton
 
-	btnAddItem    *ToolButton
-	btnEditItem   *ToolButton
-	btnRemoveItem *ToolButton
+	btnAddItem    *ui.ToolButton
+	btnEditItem   *ui.ToolButton
+	btnRemoveItem *ui.ToolButton
 
-	btnDetails *ToolButton
-	btnStart   *ToolButton
-	btnStop    *ToolButton
+	btnDetails *ui.ToolButton
+	btnStart   *ui.ToolButton
+	btnStop    *ui.ToolButton
 }
 
 var lastCreatedTopWidget *TopWidget
@@ -27,18 +30,17 @@ func NewTopWidget() *TopWidget {
 	c.InitWidget()
 	c.SetPanelPadding(0)
 
-	c.btnOpen = NewToolButton("open", "Configurations (O)", c.onBtnOpen)
+	c.btnOpen = ui.NewToolButton(loadIcon("open"), "Configurations (O)", c.onBtnOpen)
 
-	c.btnAddItem = NewToolButton("add", "Add host (A)", c.onBtnAddItem)
+	c.btnAddItem = ui.NewToolButton(loadIcon("add"), "Add host (A)", c.onBtnAddItem)
 	// The main action: twice as wide as the other buttons
-	c.btnAddItem.SetMinSize(toolButtonSize*2, toolButtonSize)
-	c.btnAddItem.SetMaxSize(toolButtonSize*2, toolButtonSize)
-	c.btnEditItem = NewToolButton("edit", "Edit host (E)", c.onBtnEditItem)
-	c.btnRemoveItem = NewToolButton("remove", "Remove selected hosts (Del)", c.onBtnRemoveItem)
+	c.btnAddItem.SetButtonSize(ui.ToolButtonDefaultSize*2, ui.ToolButtonDefaultSize)
+	c.btnEditItem = ui.NewToolButton(loadIcon("edit"), "Edit host (E)", c.onBtnEditItem)
+	c.btnRemoveItem = ui.NewToolButton(loadIcon("remove"), "Remove selected hosts (Del)", c.onBtnRemoveItem)
 
-	c.btnDetails = NewToolButton("details", "Details (D)", c.onBtnDetails)
-	c.btnStart = NewToolButton("start", "Start pinging", c.onBtnStart)
-	c.btnStop = NewToolButton("stop", "Stop pinging", c.onBtnStop)
+	c.btnDetails = ui.NewToolButton(loadIcon("details"), "Details (D)", c.onBtnDetails)
+	c.btnStart = ui.NewToolButton(loadIcon("start"), "Start pinging", c.onBtnStart)
+	c.btnStop = ui.NewToolButton(loadIcon("stop"), "Stop pinging", c.onBtnStop)
 
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
@@ -103,7 +105,7 @@ func (c *TopWidget) onBtnAddItem() {
 			hostConfig.ID = config.GenerateRandomID()
 			config.Get().AddHost(*hostConfig)
 			config.Get().Save()
-			lastCreatedLeftWidget.FullRestart()
+			lastCreatedLeftWidget.ApplyHostsChange(len(config.Get().Hosts) - 1)
 			lastCreatedLeftWidget.FocusTable()
 		}
 	}, func() {
@@ -124,7 +126,7 @@ func (c *TopWidget) onBtnEditItem() {
 			selectedHost.DisplayName = hostConfig.DisplayName
 			selectedHost.Hostname = hostConfig.Hostname
 			config.Get().Save()
-			lastCreatedLeftWidget.FullRestart()
+			lastCreatedLeftWidget.ApplyHostsChange(lastCreatedLeftWidget.RowOfHost(selectedHost.ID))
 			lastCreatedLeftWidget.FocusTable()
 		}
 	}, func() {
@@ -163,13 +165,15 @@ func (c *TopWidget) onBtnRemoveItem() {
 		return
 	}
 
-	ui.ShowQuestionMessageBoxYesNo(c, "Remove item?", "Remove Selected Items?", func() {
+	ui.ShowQuestionMessageBoxYesNo(c, "Remove hosts", removeHostsQuestion(selectedHosts), func() {
+		// After removing select the row that followed the first removed one
+		firstRow := lastCreatedLeftWidget.RowOfHost(selectedHosts[0].ID)
 		config := config.Get()
 		for _, selectedHost := range selectedHosts {
 			config.RemoveHost(selectedHost.ID)
 		}
 		config.Save()
-		lastCreatedLeftWidget.FullRestart()
+		lastCreatedLeftWidget.ApplyHostsChange(firstRow)
 		lastCreatedLeftWidget.FocusTable()
 	}, func() {
 		lastCreatedLeftWidget.FocusTable()
@@ -192,4 +196,28 @@ func (c *TopWidget) onBtnStop() {
 
 func (c *TopWidget) onCreateConfigDialogAccept() {
 
+}
+
+// removeHostsListMax is how many hosts the remove question lists; the message box fits 20 lines
+const removeHostsListMax = 10
+
+// removeHostsQuestion asks to remove the hosts and lists them
+func removeHostsQuestion(hosts []*config.ConfigHost) string {
+	var sb strings.Builder
+	if len(hosts) == 1 {
+		sb.WriteString("Remove the host?\n")
+	} else {
+		fmt.Fprintf(&sb, "Remove %d hosts?\n", len(hosts))
+	}
+	for i, h := range hosts {
+		if i == removeHostsListMax {
+			fmt.Fprintf(&sb, "\n... and %d more", len(hosts)-removeHostsListMax)
+			break
+		}
+		sb.WriteString("\n" + hostDisplayName(h))
+		if h.DisplayName != "" && h.DisplayName != h.Hostname {
+			sb.WriteString(" (" + h.Hostname + ")")
+		}
+	}
+	return sb.String()
 }

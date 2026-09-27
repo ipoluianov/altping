@@ -91,24 +91,27 @@ func (c *PingServer) Start() {
 		return
 	}
 	c.mode = mode
-	go c.thReceive()
+	go c.thReceive(c.srv)
 }
 
 func (c *PingServer) Stop() error {
+	c.mode = ""
 	if c.srv != nil {
 		return c.srv.Close()
 	}
 	return nil
 }
 
-func (c *PingServer) thReceive() {
+// thReceive reads the replies until srv is closed. It gets its own socket,
+// as after Stop and Start c.srv is already the new one.
+func (c *PingServer) thReceive(srv *icmp.PacketConn) {
 	var err error
 	rb := make([]byte, 1500)
 
 	for {
 		var n int
 		var peer net.Addr
-		n, peer, err = c.srv.ReadFrom(rb)
+		n, peer, err = srv.ReadFrom(rb)
 		if err != nil {
 			break
 		}
@@ -150,8 +153,6 @@ func (c *PingServer) thReceive() {
 		}
 		c.mtx.Unlock()
 	}
-
-	c.mode = ""
 }
 
 func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanStop chan struct{}) (result time.Duration, peer net.Addr, err error) {

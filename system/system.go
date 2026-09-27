@@ -7,9 +7,9 @@ import (
 )
 
 type System struct {
-	pingServer  *PingServer
-	Hosts       []*Host
-	chanStopped chan struct{}
+	pingServer *PingServer
+	Hosts      []*Host
+	running    bool
 
 	// Ping history by host ID. Hosts are recreated on every restart,
 	// so the history is kept here.
@@ -37,46 +37,31 @@ func Get() *System {
 }
 
 func (c *System) Start() {
-	c.UpdateConfig()
-	c.chanStopped = make(chan struct{})
-	c.pingServer.Start()
-	for _, host := range c.Hosts {
-		host.Start(c.chanStopped)
+	if c.running {
+		return
 	}
+	c.running = true
+	c.pingServer.Start()
+	c.SyncHosts()
 }
 
 func (c *System) Stop() {
-	if c.chanStopped == nil {
+	if !c.running {
 		return
 	}
-
-	c.pingServer.Stop()
-	if c.chanStopped != nil {
-		close(c.chanStopped)
-		c.chanStopped = nil
-	}
-	// Signal all hosts to stop
+	c.running = false
 	for _, host := range c.Hosts {
-		go host.Stop()
+		host.signalStop()
 	}
-	allStopped := false
-	for !allStopped {
-		allStopped = true
-		for _, host := range c.Hosts {
-			if host.IsRunning() {
-				allStopped = false
-				break
-			}
-		}
+	c.pingServer.Stop()
+	for _, host := range c.Hosts {
+		host.waitStopped()
 	}
 	c.Hosts = nil
 }
 
 func (c *System) IsRunning() bool {
-	if c.chanStopped == nil {
-		return false
-	}
-	return true
+	return c.running
 }
 
 func (c *System) PingServerMode() string {
@@ -99,15 +84,57 @@ func (c *System) GetHostHistory(id string) *HostHistory {
 	return c.history[id]
 }
 
-func (c *System) UpdateConfig() {
-	config := config.Get()
-	c.Hosts = nil
+// SyncHosts applies the current config to the running hosts: added hosts are started,
+// removed ones are stopped, and a host whose address changed is restarted.
+// The other hosts keep running with their state and statistics.
+func (c *System) SyncHosts() {
+	cfg := config.Get()
+	addresses := make(map[string]string, len(cfg.Hosts))
+	for _, hostConfig := range cfg.Hosts {
+		addresses[hostConfig.ID] = hostConfig.Hostname
+	}
 
+	kept := make(map[string]*Host)
+	var stopping []*Host
+	for _, host := range c.Hosts {
+		if address, ok := addresses[host.ID]; ok && address == host.configHost.Hostname {
+			kept[host.ID] = host
+		} else {
+			stopping = append(stopping, host)
+		}
+	}
+	for _, host := range stopping {
+		host.signalStop()
+	}
+	for _, host := range stopping {
+		host.waitStopped()
+	}
+
+	c.syncHistory(cfg)
+
+	c.Hosts = nil
+	if !c.running {
+		return
+	}
+	for _, hostConfig := range cfg.Hosts {
+		host, ok := kept[hostConfig.ID]
+		if !ok {
+			host = NewHost(hostConfig.ID, c.pingServer, c.GetHostHistory(hostConfig.ID))
+			host.UpdateConfig()
+			host.Start()
+		}
+		c.Hosts = append(c.Hosts, host)
+	}
+}
+
+// syncHistory keeps the history of the hosts in the config, loading it for new hosts
+func (c *System) syncHistory(cfg *config.Config) {
 	c.historyCleanup.Do(removeStaleHistoryFiles)
 
 	c.historyMtx.Lock()
+	defer c.historyMtx.Unlock()
 	history := make(map[string]*HostHistory)
-	for _, hostConfig := range config.Hosts {
+	for _, hostConfig := range cfg.Hosts {
 		h, ok := c.history[hostConfig.ID]
 		if !ok {
 			h = NewHostHistory(hostConfig.ID)
@@ -120,12 +147,4 @@ func (c *System) UpdateConfig() {
 		}
 	}
 	c.history = history
-	c.historyMtx.Unlock()
-
-	for _, hostConfig := range config.Hosts {
-		var host *Host
-		host = NewHost(hostConfig.ID, c.pingServer, history[hostConfig.ID])
-		c.Hosts = append(c.Hosts, host)
-		host.UpdateConfig()
-	}
 }
