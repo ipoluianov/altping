@@ -9,11 +9,18 @@ import (
 	"github.com/u00io/nuiforms/ui"
 )
 
-const (
-	detailsLiveWindow = 5 * time.Minute
-	// Hosts shown on the chart at once, one area per host
-	detailsMaxHosts = 4
-)
+// Hosts shown on the chart at once, one area per host
+const detailsMaxHosts = 4
+
+// detailsPeriods are the time ranges the chart can show; the history keeps a day
+var detailsPeriods = []struct {
+	name     string
+	duration time.Duration
+}{
+	{"5m", 5 * time.Minute},
+	{"1h", time.Hour},
+	{"24h", 24 * time.Hour},
+}
 
 var lastCreatedDetailsWidget *DetailsWidget
 
@@ -21,8 +28,12 @@ var lastCreatedDetailsWidget *DetailsWidget
 type DetailsWidget struct {
 	ui.Widget
 
-	lblTitle *ui.Label
-	chart    *ui.TimeChart
+	lblTitle   *ui.Label
+	btnPeriods []*ui.Button
+	chart      *ui.TimeChart
+
+	// The time range shown, up to now
+	period time.Duration
 
 	// IDs of the hosts on the chart, to rebuild it when the selection changes
 	shownHostIDs string
@@ -34,8 +45,19 @@ func NewDetailsWidget() *DetailsWidget {
 	c.SetPanelPadding(0)
 	c.SetMinWidth(400)
 
-	c.lblTitle = c.AddLabel(0, 0, "")
+	header := ui.NewPanel()
+	header.SetPanelPadding(0)
+	c.AddWidget(0, 0, header)
+	c.lblTitle = header.AddLabel(0, 0, "")
 	c.lblTitle.SetXExpandable(true)
+	for i, p := range detailsPeriods {
+		btn := ui.NewButton(p.name)
+		btn.SetMinWidth(48)
+		btn.SetMaxWidth(48)
+		btn.SetOnClick(func() { c.SetPeriod(p.duration) })
+		header.AddWidget(0, i+1, btn)
+		c.btnPeriods = append(c.btnPeriods, btn)
+	}
 
 	c.chart = ui.NewTimeChart()
 	c.AddWidget(1, 0, c.chart)
@@ -45,7 +67,30 @@ func NewDetailsWidget() *DetailsWidget {
 	c.AddTimer(500, c.timerUpdate)
 
 	lastCreatedDetailsWidget = &c
+	c.SetPeriod(detailsPeriods[0].duration)
 	return &c
+}
+
+// SetPeriod shows the last period of time on the chart
+func (c *DetailsWidget) SetPeriod(period time.Duration) {
+	c.period = period
+	for i, btn := range c.btnPeriods {
+		// The active period is highlighted
+		if detailsPeriods[i].duration == period {
+			btn.SetRole("primary")
+		} else {
+			btn.SetRole("")
+		}
+	}
+	if c.Form() != nil {
+		c.updateTimeRange()
+		// Leave a zoomed-in view: the period button shows the whole period
+		c.chart.ResetZoom()
+	}
+}
+
+func (c *DetailsWidget) Period() time.Duration {
+	return c.period
 }
 
 // Refresh shows the hosts selected in the table and the current time range right away
@@ -85,7 +130,7 @@ func (c *DetailsWidget) timerUpdate() {
 
 func (c *DetailsWidget) updateTimeRange() {
 	now := time.Now()
-	c.chart.SetDefaultTimeRange(now.Add(-detailsLiveWindow), now)
+	c.chart.SetDefaultTimeRange(now.Add(-c.period), now)
 	c.Form().Update()
 }
 
@@ -126,17 +171,17 @@ func (c *historySource) GetData(from, to time.Time, groupDuration time.Duration)
 	if history == nil {
 		return nil
 	}
-	samples := history.Range(from, to)
-	points := make([]ui.TimeChartPoint, len(samples))
-	for i, s := range samples {
+	// Up to a day of samples: they are aggregated as they are read, without copying them
+	agg := ui.NewTimeChartAggregator(groupDuration, int(to.Sub(from)/max(groupDuration, time.Second))+3)
+	history.Visit(from, to, func(s system.HistorySample) {
 		switch {
 		case s.Gap:
-			points[i] = ui.NewTimeChartGap(s.DT)
+			agg.Add(ui.NewTimeChartGap(s.DT))
 		case s.OK:
-			points[i] = ui.NewTimeChartValue(s.DT, float64(s.PingTime.Microseconds())/1000)
+			agg.Add(ui.NewTimeChartValue(s.DT, float64(s.PingTime.Microseconds())/1000))
 		default:
-			points[i] = ui.NewTimeChartBad(s.DT)
+			agg.Add(ui.NewTimeChartBad(s.DT))
 		}
-	}
-	return ui.TimeChartDownsample(points, from, to, groupDuration)
+	})
+	return agg.Points()
 }

@@ -52,6 +52,8 @@ func NewPingServer() *PingServer {
 }
 
 func (c *PingServer) Mode() string {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	return c.mode
 }
 
@@ -87,15 +89,22 @@ func (c *PingServer) Start() {
 	}
 	if err != nil {
 		fmt.Println("Err", err)
-		c.mode = ""
+		c.setMode("")
 		return
 	}
-	c.mode = mode
+	c.setMode(mode)
 	go c.thReceive(c.srv)
 }
 
+// setMode is locked: the hosts read the mode while the server is started and stopped
+func (c *PingServer) setMode(mode string) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	c.mode = mode
+}
+
 func (c *PingServer) Stop() error {
-	c.mode = ""
+	c.setMode("")
 	if c.srv != nil {
 		return c.srv.Close()
 	}
@@ -225,7 +234,7 @@ func (c *PingServer) PingHost(addr string, frameSize int, timeoutMs int, chanSto
 
 	var destAddr net.Addr
 
-	switch c.mode {
+	switch c.Mode() {
 	case "udp":
 		destAddr = &net.UDPAddr{IP: ipAddr}
 	case "icmp":

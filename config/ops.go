@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 func getLastWorkspaceID() string {
@@ -78,6 +80,7 @@ func loadDefaultConfig() {
 		}
 	}
 	currentConfig = cfg
+	SaveLastConfigId()
 }
 
 func Init() {
@@ -106,6 +109,8 @@ func LoadConfig(id string) error {
 		return err
 	}
 	currentConfig = &c
+	// Remembered right away, so it is not lost if the program is not closed properly
+	SaveLastConfigId()
 	return nil
 }
 
@@ -163,6 +168,9 @@ func Configs() []*Config {
 			configs = append(configs, ws)
 		}
 	}
+	sort.SliceStable(configs, func(i, j int) bool {
+		return strings.ToLower(configs[i].Name) < strings.ToLower(configs[j].Name)
+	})
 	return configs
 }
 

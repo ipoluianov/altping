@@ -3,6 +3,7 @@ package forms
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
@@ -89,6 +90,7 @@ func (c *TopWidget) onBtnOpen() {
 			}
 			lastCreatedLeftWidget.FullRestart()
 			system.Get().Start()
+			lastCreatedMainWidget.UpdateTitle()
 
 			lastCreatedLeftWidget.FocusTable()
 		}
@@ -101,13 +103,31 @@ func (c *TopWidget) onBtnOpen() {
 
 func (c *TopWidget) onBtnAddItem() {
 	dialogContent := NewEditItemDialog(nil, func(hostConfig *config.ConfigHost) {
-		if hostConfig != nil {
-			hostConfig.ID = config.GenerateRandomID()
-			config.Get().AddHost(*hostConfig)
-			config.Get().Save()
-			lastCreatedLeftWidget.ApplyHostsChange(len(config.Get().Hosts) - 1)
-			lastCreatedLeftWidget.FocusTable()
+		if hostConfig == nil {
+			return
 		}
+		// Several hosts can be pasted at once, separated by commas, semicolons or spaces;
+		// then the name is not used, each host is shown by its address
+		addresses := strings.FieldsFunc(hostConfig.Hostname, func(r rune) bool {
+			return r == ',' || r == ';' || unicode.IsSpace(r)
+		})
+		if len(addresses) == 0 {
+			return
+		}
+		firstID := ""
+		for _, address := range addresses {
+			host := config.ConfigHost{ID: config.GenerateRandomID(), Hostname: address}
+			if len(addresses) == 1 {
+				host.DisplayName = hostConfig.DisplayName
+			}
+			if firstID == "" {
+				firstID = host.ID
+			}
+			config.Get().AddHost(host)
+		}
+		config.Get().Save()
+		lastCreatedLeftWidget.ApplyHostsChange(firstID, -1)
+		lastCreatedLeftWidget.FocusTable()
 	}, func() {
 		lastCreatedLeftWidget.FocusTable()
 	})
@@ -126,7 +146,7 @@ func (c *TopWidget) onBtnEditItem() {
 			selectedHost.DisplayName = hostConfig.DisplayName
 			selectedHost.Hostname = hostConfig.Hostname
 			config.Get().Save()
-			lastCreatedLeftWidget.ApplyHostsChange(lastCreatedLeftWidget.RowOfHost(selectedHost.ID))
+			lastCreatedLeftWidget.ApplyHostsChange(selectedHost.ID, -1)
 			lastCreatedLeftWidget.FocusTable()
 		}
 	}, func() {
@@ -173,7 +193,7 @@ func (c *TopWidget) onBtnRemoveItem() {
 			config.RemoveHost(selectedHost.ID)
 		}
 		config.Save()
-		lastCreatedLeftWidget.ApplyHostsChange(firstRow)
+		lastCreatedLeftWidget.ApplyHostsChange("", firstRow)
 		lastCreatedLeftWidget.FocusTable()
 	}, func() {
 		lastCreatedLeftWidget.FocusTable()

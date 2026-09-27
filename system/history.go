@@ -158,8 +158,9 @@ func (c *HostHistory) Add(s HistorySample) {
 	}
 }
 
-// Range returns the samples within [from, to] plus the nearest sample on each side
-func (c *HostHistory) Range(from, to time.Time) []HistorySample {
+// Visit calls fn for the samples within [from, to] plus the nearest sample on each side,
+// in time order, without copying them. fn must not call the history.
+func (c *HostHistory) Visit(from, to time.Time, fn func(s HistorySample)) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
 	i0 := sort.Search(len(c.samples), func(i int) bool { return !c.samples[i].DT.Before(from) })
@@ -170,8 +171,49 @@ func (c *HostHistory) Range(from, to time.Time) []HistorySample {
 	if i1 < len(c.samples) {
 		i1++
 	}
-	res := make([]HistorySample, i1-i0)
-	copy(res, c.samples[i0:i1])
+	for _, s := range c.samples[i0:i1] {
+		fn(s)
+	}
+}
+
+// HistoryStats summarizes the pings of a period
+type HistoryStats struct {
+	Sent int
+	Lost int
+	Avg  time.Duration // of the successful pings
+	Max  time.Duration
+}
+
+// LossPercent returns the share of lost pings, 0 when nothing was sent
+func (s HistoryStats) LossPercent() float64 {
+	if s.Sent == 0 {
+		return 0
+	}
+	return float64(s.Lost) * 100 / float64(s.Sent)
+}
+
+// Stats summarizes the pings since the time
+func (c *HostHistory) Stats(since time.Time) HistoryStats {
+	c.mtx.RLock()
+	defer c.mtx.RUnlock()
+	var res HistoryStats
+	var sum time.Duration
+	i0 := sort.Search(len(c.samples), func(i int) bool { return !c.samples[i].DT.Before(since) })
+	for _, s := range c.samples[i0:] {
+		if s.Gap {
+			continue
+		}
+		res.Sent++
+		if !s.OK {
+			res.Lost++
+			continue
+		}
+		sum += s.PingTime
+		res.Max = max(res.Max, s.PingTime)
+	}
+	if ok := res.Sent - res.Lost; ok > 0 {
+		res.Avg = sum / time.Duration(ok)
+	}
 	return res
 }
 
