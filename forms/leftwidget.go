@@ -27,6 +27,7 @@ const (
 	colName = iota
 	colIP
 	colTime
+	colTrend
 	colLoss
 	colMin
 	colAvg
@@ -38,23 +39,29 @@ const (
 )
 
 // hostColumns describes the fields in the order of the table columns;
-// the optional ones are shown only when turned on in the settings
+// the optional ones are shown only when turned on in the settings.
+// The numbers are aligned to the right, so they are easy to compare.
 var hostColumns = [colCount]struct {
 	name  func(s *ColumnStrings) string
 	width int
 	shown func(s config.Settings) bool // nil - always
+	align ui.HAlign
 }{
-	colName:    {func(s *ColumnStrings) string { return s.Name }, 150, nil},
-	colIP:      {func(s *ColumnStrings) string { return s.IP }, 140, nil},
-	colTime:    {func(s *ColumnStrings) string { return s.Time }, 90, nil},
-	colLoss:    {func(s *ColumnStrings) string { return s.Loss }, 90, nil},
-	colMin:     {func(s *ColumnStrings) string { return s.Min }, 90, func(s config.Settings) bool { return s.ShowMin }},
-	colAvg:     {func(s *ColumnStrings) string { return s.Avg }, 90, nil},
-	colMax:     {func(s *ColumnStrings) string { return s.Max }, 90, nil},
-	colJitter:  {func(s *ColumnStrings) string { return s.Jitter }, 110, func(s config.Settings) bool { return s.ShowJitter }},
-	colSince:   {func(s *ColumnStrings) string { return s.Since }, 90, func(s config.Settings) bool { return s.ShowSince }},
-	colDetails: {func(s *ColumnStrings) string { return s.Details }, 200, nil},
+	colName:    {func(s *ColumnStrings) string { return s.Name }, 190, nil, ui.HAlignLeft},
+	colIP:      {func(s *ColumnStrings) string { return s.IP }, 140, nil, ui.HAlignLeft},
+	colTime:    {func(s *ColumnStrings) string { return s.Time }, 80, nil, ui.HAlignRight},
+	colTrend:   {func(s *ColumnStrings) string { return s.Trend }, 170, nil, ui.HAlignLeft},
+	colLoss:    {func(s *ColumnStrings) string { return s.Loss }, 80, nil, ui.HAlignRight},
+	colMin:     {func(s *ColumnStrings) string { return s.Min }, 80, func(s config.Settings) bool { return s.ShowMin }, ui.HAlignRight},
+	colAvg:     {func(s *ColumnStrings) string { return s.Avg }, 80, nil, ui.HAlignRight},
+	colMax:     {func(s *ColumnStrings) string { return s.Max }, 80, nil, ui.HAlignRight},
+	colJitter:  {func(s *ColumnStrings) string { return s.Jitter }, 100, func(s config.Settings) bool { return s.ShowJitter }, ui.HAlignRight},
+	colSince:   {func(s *ColumnStrings) string { return s.Since }, 90, func(s config.Settings) bool { return s.ShowSince }, ui.HAlignRight},
+	colDetails: {func(s *ColumnStrings) string { return s.Details }, 200, nil, ui.HAlignLeft},
 }
+
+// rowExtraHeight makes the rows a little taller than the theme's, so the table breathes
+const rowExtraHeight = 8
 
 var (
 	colorNotPinged = themeColors{ui.ColorFromHex("#888888"), ui.ColorFromHex("#7a7a7a")}
@@ -77,6 +84,9 @@ type LeftWidget struct {
 	// (config.ConfigHost.Notify), in the colors of the theme
 	iconNotify image.Image
 
+	// The trend charts computed lately, by host ID
+	trends map[string]trendCache
+
 	// Field the rows are sorted by (-1 - config order). The rows are sorted
 	// when a header is clicked, not on every update, so they do not jump around.
 	sortColumn int
@@ -95,7 +105,11 @@ func NewLeftWidget() *LeftWidget {
 	//c.SetMaxWidth(700)
 
 	c.sortColumn = -1
+	c.trends = make(map[string]trendCache)
 	c.lvItems.SetSelectingRows(true)
+	// The last column takes the rest of the width: no empty strip on the right
+	c.lvItems.SetStretchLastColumn(true)
+	c.lvItems.SetCellPadding(cellPaddingX)
 	c.applyTheme()
 	c.ApplyColumns()
 	c.lvItems.SetOnColumnClick(c.onColumnClick)
@@ -148,30 +162,13 @@ func NewLeftWidget() *LeftWidget {
 // instead of the accent one: the colors of the host states stay readable on it
 func (c *LeftWidget) applyTheme() {
 	c.lvItems.SetProp("background_selected_cell", ui.ColorToHex(ui.CurrentPalette().Selection))
+	c.lvItems.SetRowHeight(ui.ThemeRowHeight() + rowExtraHeight)
 	c.iconNotify = loadIcon("bell-16")
-	c.updateNotifyIcons()
+	c.timerUpdate()
 }
 
 // notifyIconSize is the width of the bell before the host names
 const notifyIconSize = 16
-
-// noNotifyIcon keeps the place of the bell, so the names stay aligned
-var noNotifyIcon = image.NewNRGBA(image.Rect(0, 0, notifyIconSize, notifyIconSize))
-
-// updateNotifyIcons shows the bell before the names of the hosts that beep
-func (c *LeftWidget) updateNotifyIcons() {
-	for row := 0; row < c.lvItems.RowCount(); row++ {
-		host, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
-		if !ok || host == nil {
-			continue
-		}
-		var icon image.Image = noNotifyIcon
-		if host.Notify {
-			icon = c.iconNotify
-		}
-		c.lvItems.SetCellImage(row, 0, icon, notifyIconSize)
-	}
-}
 
 func (c *LeftWidget) FocusTable() {
 	c.lvItems.Focus()
@@ -229,7 +226,6 @@ func (c *LeftWidget) loadHosts() {
 		c.lvItems.SetCellData2(i, 0, host)
 		c.lvItems.SetCellText2(i, 0, hostDisplayName(host))
 	}
-	c.updateNotifyIcons()
 
 	empty := len(hosts) == 0
 	if c.emptyHint.IsVisible() != empty {
@@ -369,6 +365,7 @@ func (c *LeftWidget) ApplyColumns() {
 	c.lvItems.SetColumnCount(len(c.columns))
 	for i, field := range c.columns {
 		c.lvItems.SetColumnWidth(i, hostColumns[field].width)
+		c.lvItems.SetColumnHAlign(i, hostColumns[field].align)
 	}
 	c.updateColumnNames()
 	c.timerUpdate()
@@ -380,6 +377,9 @@ func (c *LeftWidget) onColumnClick(index int) {
 		return
 	}
 	col := c.columns[index]
+	if col == colTrend {
+		return // a chart has no order
+	}
 	if col == c.sortColumn {
 		c.sortDesc = !c.sortDesc
 	} else {
@@ -522,14 +522,19 @@ func formatSince(d time.Duration) string {
 	return fmt.Sprintf("%d%s %d%s", sec/86400, u.Day, sec%86400/3600, u.Hour)
 }
 
+// isSlow tells that the host replies, but on average slower than its limit
+func (r hostRow) isSlow() bool {
+	return r.slowMs > 0 && r.stats.Sent > r.stats.Lost && r.stats.Avg > time.Duration(r.slowMs)*time.Millisecond
+}
+
 // color shows the state of the host: not pinged yet, replies, replies slowly, failed
-func (r hostRow) color(settings config.Settings) color.Color {
+func (r hostRow) color() color.Color {
 	switch {
 	case r.failed:
 		return colorFailed.get()
 	case !r.processed:
 		return colorNotPinged.get()
-	case r.slowMs > 0 && r.stats.Sent > r.stats.Lost && r.stats.Avg > time.Duration(r.slowMs)*time.Millisecond:
+	case r.isSlow():
 		return colorSlow.get()
 	}
 	return colorOK.get()
@@ -622,7 +627,7 @@ func rowValue(has bool, d time.Duration) float64 {
 }
 
 func (c *LeftWidget) timerUpdate() {
-	settings := config.GetSettings()
+	height := c.lvItems.RowHeight()
 	for row := 0; row < c.lvItems.RowCount(); row++ {
 		hostConfig, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
 		if !ok || hostConfig == nil {
@@ -630,10 +635,21 @@ func (c *LeftWidget) timerUpdate() {
 		}
 		r := hostRowOf(hostConfig)
 		texts := r.texts()
-		col := r.color(settings)
 		for i, field := range c.columns {
 			c.lvItems.SetCellText2(row, i, texts[field])
-			c.lvItems.SetCellColor(row, i, col)
+			c.lvItems.SetCellColor(row, i, r.fieldColor(field, texts[field]))
+			c.lvItems.SetCellHAlign(row, i, hostColumns[field].align)
+			width := c.lvItems.ColumnWidth(i)
+			switch field {
+			case colName:
+				notify := hostConfig.Notify
+				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawNameCell(cnv, width, height, r, notify) })
+			case colTrend:
+				id := hostConfig.ID
+				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawTrendCell(cnv, width, height, id) })
+			default:
+				c.lvItems.SetCellOnDraw(row, i, nil)
+			}
 		}
 	}
 }

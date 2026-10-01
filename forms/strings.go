@@ -30,6 +30,12 @@ type Strings struct {
 	About           string
 	ModeUDP         string
 	ModeICMP        string
+	// The status bar: how many hosts are in which state
+	StatusHosts   string
+	StatusOK      string
+	StatusSlow    string
+	StatusDown    string
+	StatusStopped string
 
 	// Table of hosts
 	Columns         ColumnStrings
@@ -147,6 +153,7 @@ type ColumnStrings struct {
 	Name    string
 	IP      string
 	Time    string
+	Trend   string // the small chart of the last minutes
 	Loss    string
 	Min     string
 	Avg     string
@@ -198,9 +205,14 @@ var en = Strings{
 	About:           "About",
 	ModeUDP:         "UDP Mode",
 	ModeICMP:        "ICMP Mode",
+	StatusHosts:     "Hosts",
+	StatusOK:        "OK",
+	StatusSlow:      "Slow",
+	StatusDown:      "Down",
+	StatusStopped:   "Pinging stopped",
 
 	Columns: ColumnStrings{
-		Name: "Name", IP: "IP", Time: "Time ms", Loss: "Loss %", Min: "Min ms", Avg: "Avg ms",
+		Name: "Name", IP: "IP", Time: "Time ms", Trend: "Last 5 min", Loss: "Loss %", Min: "Min ms", Avg: "Avg ms",
 		Max: "Max ms", Jitter: "Jitter ms", Since: "Since", Details: "Details",
 	},
 	StateOK:         "OK",
@@ -325,9 +337,14 @@ var ru = Strings{
 	About:           "О программе",
 	ModeUDP:         "Режим UDP",
 	ModeICMP:        "Режим ICMP",
+	StatusHosts:     "Хосты",
+	StatusOK:        "В норме",
+	StatusSlow:      "Медленные",
+	StatusDown:      "Недоступны",
+	StatusStopped:   "Пинг остановлен",
 
 	Columns: ColumnStrings{
-		Name: "Имя", IP: "IP", Time: "Время мс", Loss: "Потери %", Min: "Мин мс", Avg: "Сред мс",
+		Name: "Имя", IP: "IP", Time: "Время мс", Trend: "За 5 мин", Loss: "Потери %", Min: "Мин мс", Avg: "Сред мс",
 		Max: "Макс мс", Jitter: "Джиттер мс", Since: "С тех пор", Details: "Состояние",
 	},
 	StateOK:         "OK",
@@ -451,9 +468,14 @@ var pl = Strings{
 	About:           "O programie",
 	ModeUDP:         "Tryb UDP",
 	ModeICMP:        "Tryb ICMP",
+	StatusHosts:     "Hosty",
+	StatusOK:        "OK",
+	StatusSlow:      "Wolne",
+	StatusDown:      "Niedostępne",
+	StatusStopped:   "Pingowanie zatrzymane",
 
 	Columns: ColumnStrings{
-		Name: "Nazwa", IP: "IP", Time: "Czas ms", Loss: "Straty %", Min: "Min ms", Avg: "Śr. ms",
+		Name: "Nazwa", IP: "IP", Time: "Czas ms", Trend: "Ostatnie 5 min", Loss: "Straty %", Min: "Min ms", Avg: "Śr. ms",
 		Max: "Maks ms", Jitter: "Jitter ms", Since: "Od", Details: "Stan",
 	},
 	StateOK:         "OK",
@@ -578,9 +600,14 @@ var sr = Strings{
 	About:           "О програму",
 	ModeUDP:         "UDP режим",
 	ModeICMP:        "ICMP режим",
+	StatusHosts:     "Хостови",
+	StatusOK:        "У реду",
+	StatusSlow:      "Спори",
+	StatusDown:      "Недоступни",
+	StatusStopped:   "Пинговање заустављено",
 
 	Columns: ColumnStrings{
-		Name: "Име", IP: "IP", Time: "Време мс", Loss: "Губитак %", Min: "Мин мс", Avg: "Прос мс",
+		Name: "Име", IP: "IP", Time: "Време мс", Trend: "Последњих 5 мин", Loss: "Губитак %", Min: "Мин мс", Avg: "Прос мс",
 		Max: "Макс мс", Jitter: "Џитер мс", Since: "Од", Details: "Стање",
 	},
 	StateOK:         "OK",
@@ -704,9 +731,14 @@ var de = Strings{
 	About:           "Über",
 	ModeUDP:         "UDP-Modus",
 	ModeICMP:        "ICMP-Modus",
+	StatusHosts:     "Hosts",
+	StatusOK:        "OK",
+	StatusSlow:      "Langsam",
+	StatusDown:      "Nicht erreichbar",
+	StatusStopped:   "Ping gestoppt",
 
 	Columns: ColumnStrings{
-		Name: "Name", IP: "IP", Time: "Zeit ms", Loss: "Verlust %", Min: "Min ms", Avg: "Mittel ms",
+		Name: "Name", IP: "IP", Time: "Zeit ms", Trend: "Letzte 5 Min.", Loss: "Verlust %", Min: "Min ms", Avg: "Mittel ms",
 		Max: "Max ms", Jitter: "Jitter ms", Since: "Seit", Details: "Details",
 	},
 	StateOK:         "OK",
@@ -831,9 +863,14 @@ var fr = Strings{
 	About:           "À propos",
 	ModeUDP:         "Mode UDP",
 	ModeICMP:        "Mode ICMP",
+	StatusHosts:     "Hôtes",
+	StatusOK:        "OK",
+	StatusSlow:      "Lents",
+	StatusDown:      "Injoignables",
+	StatusStopped:   "Ping arrêté",
 
 	Columns: ColumnStrings{
-		Name: "Nom", IP: "IP", Time: "Temps ms", Loss: "Perte %", Min: "Min ms", Avg: "Moy ms",
+		Name: "Nom", IP: "IP", Time: "Temps ms", Trend: "5 dernières min", Loss: "Perte %", Min: "Min ms", Avg: "Moy ms",
 		Max: "Max ms", Jitter: "Gigue ms", Since: "Depuis", Details: "Détails",
 	},
 	StateOK:         "OK",
@@ -958,9 +995,14 @@ var es = Strings{
 	About:           "Acerca de",
 	ModeUDP:         "Modo UDP",
 	ModeICMP:        "Modo ICMP",
+	StatusHosts:     "Hosts",
+	StatusOK:        "OK",
+	StatusSlow:      "Lentos",
+	StatusDown:      "Caídos",
+	StatusStopped:   "Ping detenido",
 
 	Columns: ColumnStrings{
-		Name: "Nombre", IP: "IP", Time: "Tiempo ms", Loss: "Pérdida %", Min: "Mín ms", Avg: "Media ms",
+		Name: "Nombre", IP: "IP", Time: "Tiempo ms", Trend: "Últimos 5 min", Loss: "Pérdida %", Min: "Mín ms", Avg: "Media ms",
 		Max: "Máx ms", Jitter: "Jitter ms", Since: "Desde", Details: "Detalles",
 	},
 	StateOK:         "OK",
@@ -1082,9 +1124,14 @@ var it = Strings{
 	About:           "Informazioni",
 	ModeUDP:         "Modalità UDP",
 	ModeICMP:        "Modalità ICMP",
+	StatusHosts:     "Host",
+	StatusOK:        "OK",
+	StatusSlow:      "Lenti",
+	StatusDown:      "Non raggiungibili",
+	StatusStopped:   "Ping fermato",
 
 	Columns: ColumnStrings{
-		Name: "Nome", IP: "IP", Time: "Tempo ms", Loss: "Perdita %", Min: "Min ms", Avg: "Media ms",
+		Name: "Nome", IP: "IP", Time: "Tempo ms", Trend: "Ultimi 5 min", Loss: "Perdita %", Min: "Min ms", Avg: "Media ms",
 		Max: "Max ms", Jitter: "Jitter ms", Since: "Da", Details: "Dettagli",
 	},
 	StateOK:         "OK",
@@ -1206,9 +1253,14 @@ var pt = Strings{
 	About:           "Sobre",
 	ModeUDP:         "Modo UDP",
 	ModeICMP:        "Modo ICMP",
+	StatusHosts:     "Hosts",
+	StatusOK:        "OK",
+	StatusSlow:      "Lentos",
+	StatusDown:      "Fora do ar",
+	StatusStopped:   "Ping parado",
 
 	Columns: ColumnStrings{
-		Name: "Nome", IP: "IP", Time: "Tempo ms", Loss: "Perda %", Min: "Mín ms", Avg: "Média ms",
+		Name: "Nome", IP: "IP", Time: "Tempo ms", Trend: "Últimos 5 min", Loss: "Perda %", Min: "Mín ms", Avg: "Média ms",
 		Max: "Máx ms", Jitter: "Jitter ms", Since: "Desde", Details: "Detalhes",
 	},
 	StateOK:         "OK",
@@ -1330,9 +1382,14 @@ var zh = Strings{
 	About:           "关于",
 	ModeUDP:         "UDP 模式",
 	ModeICMP:        "ICMP 模式",
+	StatusHosts:     "主机",
+	StatusOK:        "正常",
+	StatusSlow:      "缓慢",
+	StatusDown:      "不可达",
+	StatusStopped:   "已停止 ping",
 
 	Columns: ColumnStrings{
-		Name: "名称", IP: "IP", Time: "时间 ms", Loss: "丢包 %", Min: "最小 ms", Avg: "平均 ms",
+		Name: "名称", IP: "IP", Time: "时间 ms", Trend: "最近 5 分钟", Loss: "丢包 %", Min: "最小 ms", Avg: "平均 ms",
 		Max: "最大 ms", Jitter: "抖动 ms", Since: "持续", Details: "状态",
 	},
 	StateOK:         "正常",
@@ -1452,9 +1509,14 @@ var ja = Strings{
 	About:           "バージョン情報",
 	ModeUDP:         "UDP モード",
 	ModeICMP:        "ICMP モード",
+	StatusHosts:     "ホスト",
+	StatusOK:        "正常",
+	StatusSlow:      "遅い",
+	StatusDown:      "応答なし",
+	StatusStopped:   "ping 停止中",
 
 	Columns: ColumnStrings{
-		Name: "名前", IP: "IP", Time: "時間 ms", Loss: "損失 %", Min: "最小 ms", Avg: "平均 ms",
+		Name: "名前", IP: "IP", Time: "時間 ms", Trend: "直近 5 分", Loss: "損失 %", Min: "最小 ms", Avg: "平均 ms",
 		Max: "最大 ms", Jitter: "ジッター ms", Since: "経過", Details: "状態",
 	},
 	StateOK:         "OK",
@@ -1574,9 +1636,14 @@ var ko = Strings{
 	About:           "정보",
 	ModeUDP:         "UDP 모드",
 	ModeICMP:        "ICMP 모드",
+	StatusHosts:     "호스트",
+	StatusOK:        "정상",
+	StatusSlow:      "느림",
+	StatusDown:      "응답 없음",
+	StatusStopped:   "ping 중지됨",
 
 	Columns: ColumnStrings{
-		Name: "이름", IP: "IP", Time: "시간 ms", Loss: "손실 %", Min: "최소 ms", Avg: "평균 ms",
+		Name: "이름", IP: "IP", Time: "시간 ms", Trend: "최근 5분", Loss: "손실 %", Min: "최소 ms", Avg: "평균 ms",
 		Max: "최대 ms", Jitter: "지터 ms", Since: "경과", Details: "상태",
 	},
 	StateOK:         "정상",

@@ -39,8 +39,6 @@ func NewTopWidget() *TopWidget {
 	c.btnAddItem = ui.NewToolButton(nil, "", c.onBtnAddItem)
 	setIcon("add", c.btnAddItem.SetImage)
 	c.btnAddItem.SetTooltipFunc(func() string { return T().ToolAddHost })
-	// The main action: twice as wide as the other buttons
-	c.btnAddItem.SetButtonSize(ui.ToolButtonDefaultSize*2, ui.ToolButtonDefaultSize)
 	c.btnEditItem = ui.NewToolButton(nil, "", c.onBtnEditItem)
 	setIcon("edit", c.btnEditItem.SetImage)
 	c.btnEditItem.SetTooltipFunc(func() string { return T().ToolEditHost })
@@ -61,6 +59,12 @@ func NewTopWidget() *TopWidget {
 	c.btnTray = ui.NewToolButton(nil, "", c.onBtnTray)
 	setIcon("tray", c.btnTray.SetImage)
 	c.btnTray.SetTooltipFunc(func() string { return T().ToolTray })
+
+	// Flat icons: the toolbar stays light, a button shows its shape under the mouse
+	for _, btn := range []*ui.ToolButton{c.btnAddItem, c.btnEditItem, c.btnRemoveItem,
+		c.btnDetails, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
+		btn.SetFlat(true)
+	}
 
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
