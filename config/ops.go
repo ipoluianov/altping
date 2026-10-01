@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -74,6 +75,11 @@ func loadDefaultConfig() {
 	cfg := NewConfig()
 	err = cfg.Load(configIdLast)
 	if err != nil {
+		// A file that is there but cannot be read is left as it is, to be recovered;
+		// the user is told about it instead of just seeing an empty list
+		if !os.IsNotExist(err) {
+			loadError = fmt.Errorf("%s: %w", path.Join(configDir, configIdLast+".ws"), err)
+		}
 		cfg, _ = CreateNewConfig("Default")
 		if cfg == nil {
 			cfg = NewConfig()
@@ -83,9 +89,18 @@ func loadDefaultConfig() {
 	SaveLastConfigId()
 }
 
+// loadError is why the last opened config could not be read at start, nil if it was
+var loadError error
+
 func Init() {
 	LoadSettings()
 	loadDefaultConfig()
+}
+
+// LoadError returns why the last opened config could not be read at start
+// (a new one was opened instead), nil if it was read
+func LoadError() error {
+	return loadError
 }
 
 func Get() *Config {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -32,9 +33,13 @@ type Host struct {
 	chanStop chan struct{}
 	chanDone chan struct{}
 
-	statOK             int
-	statERR            int
-	IP                 string
+	statOK  int
+	statERR int
+	IP      string
+	// When the name was last looked up, and the failed pings in a row since then (see checkIP)
+	resolvedAt  time.Time
+	failedPings int
+
 	resultErr          error
 	resultLastLiveIP   string
 	resultLastPingTime time.Duration
@@ -144,29 +149,10 @@ func (c *Host) target() (host string, port string) {
 	return c.configHost.Target()
 }
 
-func (c *Host) checkIP() bool {
-	if len(c.IP) == 0 {
-		host, _ := c.target()
-		ips, err := net.LookupIP(host)
-		ip := pickIP(ips)
-		if err != nil || ip == nil {
-			c.mtx.Lock()
-			c.IP = ""
-			c.mtx.Unlock()
-			c.resultErr = errors.New("cannot resolve hostname")
-			return false
-		}
-		c.mtx.Lock()
-		c.IP = ip.String()
-		c.mtx.Unlock()
-	}
-	return true
-}
-
-// connectTCP measures how long it takes to open a connection to the port
-func (c *Host) connectTCP(port string, timeout time.Duration) (time.Duration, net.Addr, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+// untilStop returns a context that is also cancelled when the host is stopped,
+// so Stop does not wait for a slow lookup or connection
+func (c *Host) untilStop(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
 	go func() {
 		select {
 		case <-c.chanStop:
@@ -174,6 +160,53 @@ func (c *Host) connectTCP(port string, timeout time.Duration) (time.Duration, ne
 		case <-ctx.Done():
 		}
 	}()
+	return ctx, cancel
+}
+
+// The name of a host is looked up again after this time, and after this many failed pings in a row
+const (
+	reresolveInterval      = 5 * time.Minute
+	reresolveAfterFailures = 3
+)
+
+// checkIP finds the address to ping. The name is looked up again from time to
+// time and when the host stops replying, so a changed address is followed.
+// The address in use is kept while the DNS still returns it: a name with
+// several addresses (round robin) does not jump between them. When the
+// lookup fails, the known address is kept: a DNS failure is not a host failure.
+func (c *Host) checkIP() bool {
+	if c.IP != "" && c.failedPings < reresolveAfterFailures && time.Since(c.resolvedAt) < reresolveInterval {
+		return true
+	}
+	host, _ := c.target()
+	ctx, cancel := c.untilStop(context.Background())
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+	cancel()
+	c.resolvedAt = time.Now()
+	c.failedPings = 0
+	ip := pickIP(ips)
+	if err != nil || ip == nil {
+		if c.IP != "" {
+			return true
+		}
+		c.resultErr = errors.New("cannot resolve hostname")
+		return false
+	}
+	if c.IP != "" && slices.ContainsFunc(ips, net.ParseIP(c.IP).Equal) {
+		return true
+	}
+	c.mtx.Lock()
+	c.IP = ip.String()
+	c.mtx.Unlock()
+	return true
+}
+
+// connectTCP measures how long it takes to open a connection to the port
+func (c *Host) connectTCP(port string, timeout time.Duration) (time.Duration, net.Addr, error) {
+	timeoutCtx, cancelTimeout := context.WithTimeout(context.Background(), timeout)
+	defer cancelTimeout()
+	ctx, cancel := c.untilStop(timeoutCtx)
+	defer cancel()
 	start := time.Now()
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(c.IP, port))
@@ -264,10 +297,12 @@ func (c *Host) thWork() {
 
 			if err != nil {
 				c.statERR++
+				c.failedPings++
 				c.resultErr = err
 			} else {
 				fmt.Println("OK", c.configHost.ID)
 				c.statOK++
+				c.failedPings = 0
 				c.resultErr = nil
 
 				var ipAddr *net.IPAddr

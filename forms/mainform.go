@@ -86,6 +86,13 @@ func (c *MainForm) ApplySettings(s config.Settings) {
 	c.checkHostsDown()
 }
 
+// ShowStartupErrors tells what went wrong while loading at start; call it once the window is shown
+func (c *MainForm) ShowStartupErrors() {
+	if err := config.LoadError(); err != nil {
+		ui.ShowMessageBox(c, T().Error, T().ConfigLoadFailed(err.Error()))
+	}
+}
+
 // ShowSettings opens the settings dialog
 func (c *MainForm) ShowSettings() {
 	c.ShowDialog(NewSettingsDialog(config.GetSettings(), c.ApplySettings))

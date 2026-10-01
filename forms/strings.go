@@ -138,6 +138,8 @@ type Strings struct {
 	ExportTitle string
 	CSVFiles    string
 	SavedTo     func(path string) string
+	// At start, when the last opened config could not be read
+	ConfigLoadFailed func(err string) string
 }
 
 // ColumnStrings are the names of the table columns
@@ -299,6 +301,9 @@ var en = Strings{
 	ExportTitle: "Export history",
 	CSVFiles:    "CSV files",
 	SavedTo:     func(path string) string { return "Saved to " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "The host list could not be read, a new empty one was opened. The file was left as is:\n\n" + err
+	},
 }
 
 var ru = Strings{
@@ -422,6 +427,9 @@ var ru = Strings{
 	ExportTitle: "Экспорт истории",
 	CSVFiles:    "Файлы CSV",
 	SavedTo:     func(path string) string { return "Сохранено в " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Не удалось прочитать список хостов, открыт новый пустой. Файл оставлен как есть:\n\n" + err
+	},
 }
 
 var pl = Strings{
@@ -545,6 +553,9 @@ var pl = Strings{
 	ExportTitle: "Eksport historii",
 	CSVFiles:    "Pliki CSV",
 	SavedTo:     func(path string) string { return "Zapisano w " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Nie udało się odczytać listy hostów, otwarto nową pustą. Plik pozostawiono bez zmian:\n\n" + err
+	},
 }
 
 // Serbian in Cyrillic, the script of the "sr" tag
@@ -669,6 +680,9 @@ var sr = Strings{
 	ExportTitle: "Извоз историје",
 	CSVFiles:    "CSV датотеке",
 	SavedTo:     func(path string) string { return "Сачувано у " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Листа хостова није могла да се прочита, отворена је нова празна. Датотека је остављена каква јесте:\n\n" + err
+	},
 }
 
 var de = Strings{
@@ -793,6 +807,9 @@ var de = Strings{
 	ExportTitle: "Verlauf exportieren",
 	CSVFiles:    "CSV-Dateien",
 	SavedTo:     func(path string) string { return "Gespeichert unter " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Die Hostliste konnte nicht gelesen werden, eine neue leere wurde geöffnet. Die Datei wurde unverändert gelassen:\n\n" + err
+	},
 }
 
 var fr = Strings{
@@ -917,6 +934,9 @@ var fr = Strings{
 	ExportTitle: "Exporter l'historique",
 	CSVFiles:    "Fichiers CSV",
 	SavedTo:     func(path string) string { return "Enregistré dans " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Impossible de lire la liste des hôtes, une nouvelle liste vide a été ouverte. Le fichier a été laissé tel quel :\n\n" + err
+	},
 }
 
 var es = Strings{
@@ -1038,6 +1058,9 @@ var es = Strings{
 	ExportTitle: "Exportar historial",
 	CSVFiles:    "Archivos CSV",
 	SavedTo:     func(path string) string { return "Guardado en " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "No se pudo leer la lista de hosts; se abrió una nueva vacía. El archivo se dejó tal cual:\n\n" + err
+	},
 }
 
 var it = Strings{
@@ -1159,6 +1182,9 @@ var it = Strings{
 	ExportTitle: "Esporta cronologia",
 	CSVFiles:    "File CSV",
 	SavedTo:     func(path string) string { return "Salvato in " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Impossibile leggere l'elenco degli host, ne è stato aperto uno nuovo vuoto. Il file è stato lasciato invariato:\n\n" + err
+	},
 }
 
 var pt = Strings{
@@ -1280,6 +1306,9 @@ var pt = Strings{
 	ExportTitle: "Exportar histórico",
 	CSVFiles:    "Arquivos CSV",
 	SavedTo:     func(path string) string { return "Salvo em " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "Não foi possível ler a lista de hosts; uma nova lista vazia foi aberta. O arquivo foi mantido como está:\n\n" + err
+	},
 }
 
 var zh = Strings{
@@ -1399,6 +1428,9 @@ var zh = Strings{
 	ExportTitle: "导出历史",
 	CSVFiles:    "CSV 文件",
 	SavedTo:     func(path string) string { return "已保存到 " + path },
+	ConfigLoadFailed: func(err string) string {
+		return "无法读取主机列表，已打开一个新的空列表。原文件保持不变：\n\n" + err
+	},
 }
 
 var ja = Strings{
@@ -1518,6 +1550,9 @@ var ja = Strings{
 	ExportTitle: "履歴のエクスポート",
 	CSVFiles:    "CSV ファイル",
 	SavedTo:     func(path string) string { return path + " に保存しました" },
+	ConfigLoadFailed: func(err string) string {
+		return "ホスト一覧を読み込めなかったため、新しい空の一覧を開きました。ファイルはそのまま残してあります:\n\n" + err
+	},
 }
 
 var ko = Strings{
@@ -1637,6 +1672,9 @@ var ko = Strings{
 	ExportTitle: "기록 내보내기",
 	CSVFiles:    "CSV 파일",
 	SavedTo:     func(path string) string { return path + "에 저장됨" },
+	ConfigLoadFailed: func(err string) string {
+		return "호스트 목록을 읽을 수 없어 새 빈 목록을 열었습니다. 파일은 그대로 두었습니다:\n\n" + err
+	},
 }
 
 var catalog = i18n.NewCatalog(en, map[string]Strings{

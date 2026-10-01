@@ -106,7 +106,31 @@ func (c *Config) Save() error {
 	if mkdirallErr != nil {
 		return mkdirallErr
 	}
-	return os.WriteFile(fullPath, bs, 0644)
+	return writeFileAtomic(fullPath, bs)
+}
+
+// writeFileAtomic writes to a temporary file and renames it over the target,
+// so a crash or a power loss leaves either the old file or the new one, never a torn one
+func writeFileAtomic(fullPath string, bs []byte) error {
+	tmpPath := fullPath + ".tmp"
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(bs)
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmpPath, fullPath)
+	}
+	if err != nil {
+		os.Remove(tmpPath)
+	}
+	return err
 }
 
 func (c *Config) Load(id string) error {

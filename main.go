@@ -32,6 +32,7 @@ func main() {
 		}
 		form.SetAlwaysOnTop(config.GetSettings().AlwaysOnTop)
 		mainForm.Activate()
+		mainForm.ShowStartupErrors()
 	})
 	form.Exec()
 	forms.CloseTray()
