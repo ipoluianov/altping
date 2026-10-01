@@ -3,7 +3,7 @@ module github.com/ipoluianov/altping
 go 1.27.1
 
 require (
-	github.com/ipoluianov/nui v0.0.0
+	github.com/ipoluianov/nui v0.0.7
 	golang.org/x/net v0.58.0
 )
 
@@ -21,4 +21,4 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 )
 
-replace github.com/ipoluianov/nui => ../nui
+// replace github.com/ipoluianov/nui => ../nui
