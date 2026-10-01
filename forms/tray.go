@@ -2,8 +2,7 @@ package forms
 
 import "github.com/ipoluianov/nui/ui"
 
-// trayIcon is created the first time the window goes to the tray and stays
-// until the application quits
+// trayIcon exists only while the window is in the tray
 var trayIcon *ui.TrayIcon
 
 // HideToTray hides the window, leaving the icon in the system tray to bring
@@ -23,10 +22,12 @@ func (c *MainForm) HideToTray() {
 	c.Form().Hide()
 }
 
-// ShowFromTray brings the hidden window back
+// ShowFromTray brings the hidden window back and removes the tray icon. The
+// icon goes after the current handler, which may be the icon's own click.
 func (c *MainForm) ShowFromTray() {
 	c.Form().Show()
 	c.Activate()
+	c.Form().Invoke(CloseTray)
 }
 
 // quitFromTray closes the application from the tray menu
