@@ -40,6 +40,11 @@ type Host struct {
 	resolvedAt  time.Time
 	failedPings int
 
+	// The u00.io API key to send the results to, "" - not shared. Set from the UI,
+	// so it can be turned on and off without restarting the host.
+	shareKey  string
+	shareName string // the name shown on the page
+
 	resultErr          error
 	resultLastLiveIP   string
 	resultLastPingTime time.Duration
@@ -141,7 +146,41 @@ func (c *Host) UpdateConfig() {
 	config := config.Get()
 	c.config = config
 	c.configHost = config.GetHost(c.ID)
+	c.SetShare(c.configHost)
 	c.resetStat()
+}
+
+// SetShare starts or stops sending the results to u00.io as the host config says
+func (c *Host) SetShare(hostConfig config.ConfigHost) {
+	key := ""
+	if hostConfig.Share {
+		key = hostConfig.ShareKey
+	}
+	// The name as the table shows it
+	name := hostConfig.DisplayName
+	if name == "" {
+		name = hostConfig.Address()
+	}
+	c.mtx.Lock()
+	c.shareKey = key
+	c.shareName = name
+	c.mtx.Unlock()
+}
+
+// share sends the result of the last ping to u00.io if the host is shared
+func (c *Host) share() {
+	// A ping interrupted by Stop is not a real result
+	select {
+	case <-c.chanStop:
+		return
+	default:
+	}
+	c.mtx.Lock()
+	key, name := c.shareKey, c.shareName
+	c.mtx.Unlock()
+	if key != "" {
+		shareSender.push(key, shareItem{value: shareValue(c.resultLastPingTime, c.resultErr), name: name})
+	}
 }
 
 // target returns the host to resolve and the TCP port to connect to ("" - ping)
@@ -326,6 +365,7 @@ func (c *Host) thWork() {
 		}
 
 		c.addToHistory()
+		c.share()
 		c.updateState()
 	}
 }

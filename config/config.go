@@ -19,6 +19,9 @@ type ConfigHost struct {
 	SlowMs      int `json:",omitempty"` // average above it is shown as slow; 0 - off
 	// Notify: beep and mark the window when the host goes down or comes back
 	Notify bool `json:",omitempty"`
+	// Share: send the ping times to the public page of ShareKey on u00.io (see share.go)
+	Share    bool   `json:",omitempty"`
+	ShareKey string `json:",omitempty"`
 }
 
 // Target returns what to check: the host and the TCP port ("" - ping).
@@ -73,7 +76,11 @@ func NewConfig() *Config {
 	return &c
 }
 
+// AddHost adds the host; one without a share key gets a new one
 func (c *Config) AddHost(host ConfigHost) {
+	if ShareAddress(host.ShareKey) == "" {
+		host.ShareKey = NewShareKey()
+	}
 	c.Hosts = append(c.Hosts, &host)
 }
 

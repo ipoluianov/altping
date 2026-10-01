@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/system"
 	"github.com/ipoluianov/nui/ui"
 )
@@ -112,6 +113,12 @@ func (c *LeftWidget) drawNameCell(cnv *ui.Canvas, width, height int, r hostRow, 
 		cnv.DrawImage(x, (height-notifyIconSize)/2, c.iconNotify)
 	}
 	x += notifyIconSize + notifyIconGap
+	if c.shareSlot {
+		if icon := c.shareIcon(r.share); icon != nil {
+			cnv.DrawImage(x, (height-notifyIconSize)/2, icon)
+		}
+		x += notifyIconSize + notifyIconGap
+	}
 
 	cnv.SetFontFamily(c.lvItems.FontFamily())
 	cnv.SetFontSize(c.lvItems.FontSize())
@@ -139,6 +146,63 @@ func fitText(fontFamily string, fontSize float64, text string, width int) string
 		}
 	}
 	return ""
+}
+
+// shareState is how the values of a host go to u00.io, shown by the mark before its name
+type shareState int
+
+const (
+	shareOff     shareState = iota // not shared: no mark
+	shareIdle                      // shared, but nothing goes now: pinging is stopped or nothing sent yet
+	shareActive                    // the values get there
+	shareFailing                   // the last value did not get there
+)
+
+// shareActiveFor is how long after the last value got there the host still counts as sending
+const shareActiveFor = 15 * time.Second
+
+func hostShareState(h *config.ConfigHost) shareState {
+	if !h.Share || h.ShareURL() == "" {
+		return shareOff
+	}
+	if !system.Get().IsRunning() {
+		return shareIdle
+	}
+	status := system.GetShareStatus(h.ShareKey)
+	switch {
+	case status.At.IsZero():
+		return shareIdle
+	case status.Err != nil:
+		return shareFailing
+	case time.Since(status.At) < shareActiveFor+h.Interval()*2:
+		return shareActive
+	}
+	return shareIdle
+}
+
+// shareIcon returns the u00.io mark in the color of the state, nil for none
+func (c *LeftWidget) shareIcon(state shareState) image.Image {
+	var col color.RGBA
+	switch state {
+	case shareActive:
+		col = colorTrend.get()
+	case shareFailing:
+		col = colorFailed.get()
+	case shareIdle:
+		col = colorMuted.get()
+	default:
+		return nil
+	}
+	if icon, ok := c.shareIcons[col]; ok {
+		return icon
+	}
+	base := loadIcon("share-16")
+	if base == nil {
+		return nil
+	}
+	icon := tintIcon(base, col)
+	c.shareIcons[col] = icon
+	return icon
 }
 
 // trendPoint is one point of the trend chart: the slowest reply of its time

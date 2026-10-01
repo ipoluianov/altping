@@ -47,7 +47,7 @@ var hostColumns = [colCount]struct {
 	shown func(s config.Settings) bool // nil - always
 	align ui.HAlign
 }{
-	colName:    {func(s *ColumnStrings) string { return s.Name }, 190, nil, ui.HAlignLeft},
+	colName:    {func(s *ColumnStrings) string { return s.Name }, 220, nil, ui.HAlignLeft},
 	colIP:      {func(s *ColumnStrings) string { return s.IP }, 140, nil, ui.HAlignLeft},
 	colTime:    {func(s *ColumnStrings) string { return s.Time }, 80, nil, ui.HAlignRight},
 	colTrend:   {func(s *ColumnStrings) string { return s.Trend }, 170, nil, ui.HAlignLeft},
@@ -86,6 +86,10 @@ type LeftWidget struct {
 
 	// The trend charts computed lately, by host ID
 	trends map[string]trendCache
+	// The u00.io mark in the colors of its states, made from the icon as needed
+	shareIcons map[color.RGBA]image.Image
+	// Whether the names leave room for the u00.io mark: only when a host is shared
+	shareSlot bool
 
 	// Field the rows are sorted by (-1 - config order). The rows are sorted
 	// when a header is clicked, not on every update, so they do not jump around.
@@ -106,6 +110,7 @@ func NewLeftWidget() *LeftWidget {
 
 	c.sortColumn = -1
 	c.trends = make(map[string]trendCache)
+	c.shareIcons = make(map[color.RGBA]image.Image)
 	c.lvItems.SetSelectingRows(true)
 	// The last column takes the rest of the width: no empty strip on the right
 	c.lvItems.SetStretchLastColumn(true)
@@ -125,16 +130,42 @@ func NewLeftWidget() *LeftWidget {
 	setIcon("remove-16", func(img image.Image) { remove.SetImage(img) })
 	remove.SetTextFunc(func() string { return T().MenuRemove })
 	menu.AddSeparator()
-	menu.AddItem("", func() {
+	downtime := menu.AddItem("", func() {
 		if hosts := c.GetSelectedHostConfigs(); len(hosts) > 0 {
 			c.ShowDialog(NewDowntimeDialog(hosts))
 		}
-	}).SetTextFunc(func() string { return T().MenuDowntime })
-	menu.AddItem("", func() { exportHistory(c.GetSelectedHostConfigs()) }).SetTextFunc(func() string { return T().MenuExport })
+	})
+	setIcon("downtime-16", func(img image.Image) { downtime.SetImage(img) })
+	downtime.SetTextFunc(func() string { return T().MenuDowntime })
+	export := menu.AddItem("", func() { exportHistory(c.GetSelectedHostConfigs()) })
+	setIcon("export-16", func(img image.Image) { export.SetImage(img) })
+	export.SetTextFunc(func() string { return T().MenuExport })
+	// The u00.io page of a shared host
+	shareOpen := menu.AddItem("", func() {
+		if host := c.sharedSelectedHost(); host != nil {
+			openShareURL(&c, *host)
+		}
+	})
+	setIcon("share-16", func(img image.Image) { shareOpen.SetImage(img) })
+	shareOpen.SetTextFunc(func() string { return T().MenuShareOpen })
+	shareCopy := menu.AddItem("", func() {
+		if host := c.sharedSelectedHost(); host != nil {
+			copyShareURL(&c, *host)
+		}
+	})
+	setIcon("copy-16", func(img image.Image) { shareCopy.SetImage(img) })
+	shareCopy.SetTextFunc(func() string { return T().MenuShareCopy })
 	menu.AddSeparator()
-	menu.AddItemWithSubmenu("", c.newChangeMenu()).SetTextFunc(func() string { return T().MenuChange })
-	// Only one host is edited at a time
-	menu.SetOnShow(func() { edit.SetVisible(len(c.GetSelectedHostConfigs()) == 1) })
+	change := menu.AddItemWithSubmenu("", c.newChangeMenu())
+	setIcon("change-16", func(img image.Image) { change.SetImage(img) })
+	change.SetTextFunc(func() string { return T().MenuChange })
+	menu.SetOnShow(func() {
+		// Only one host is edited at a time
+		edit.SetVisible(len(c.GetSelectedHostConfigs()) == 1)
+		shared := c.sharedSelectedHost() != nil
+		shareOpen.SetVisible(shared)
+		shareCopy.SetVisible(shared)
+	})
 	c.lvItems.SetContextMenu(menu)
 
 	// Double click edits the host, like Enter and E
@@ -271,6 +302,9 @@ func (c *LeftWidget) newChangeMenu() *ui.ContextMenu {
 	}
 	item(func() string { return T().BeepOn }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = true }) })
 	item(func() string { return T().BeepOff }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Notify = false }) })
+	menu.AddSeparator()
+	item(func() string { return T().ShareStart }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Share = true }) })
+	item(func() string { return T().ShareStop }, func() { c.changeSelected(func(h *config.ConfigHost) { h.Share = false }) })
 	menu.AddSeparator()
 	item(func() string { return T().CheckTCPPort + "..." }, func() {
 		c.askSelected(T().CheckTCPPort, T().PortLabel, func(h *config.ConfigHost) int {
@@ -415,6 +449,15 @@ func (c *LeftWidget) updateColumnNames() {
 	}
 }
 
+// sharedSelectedHost returns the selected host if it is the only one and is shared on u00.io
+func (c *LeftWidget) sharedSelectedHost() *config.ConfigHost {
+	hosts := c.GetSelectedHostConfigs()
+	if len(hosts) != 1 || !hosts[0].Share || hosts[0].ShareURL() == "" {
+		return nil
+	}
+	return hosts[0]
+}
+
 func (c *LeftWidget) GetSelectedHostConfigs() []*config.ConfigHost {
 	selectedRows := c.lvItems.SelectedRows()
 	if len(selectedRows) == 0 {
@@ -441,6 +484,7 @@ type hostRow struct {
 	since     time.Time // when the result last changed; zero - unknown
 	slowMs    int       // the host's limit for "slow"; 0 - off
 	details   string
+	share     shareState // how the values go to u00.io
 }
 
 func hostRowOf(h *config.ConfigHost) hostRow {
@@ -453,6 +497,7 @@ func hostRowOf(h *config.ConfigHost) hostRow {
 		ip:        state.StatIP,
 		time:      state.PingTime,
 		details:   T().StateOK,
+		share:     hostShareState(h),
 	}
 	if history := system.Get().GetHostHistory(h.ID); history != nil {
 		r.stats = history.Stats(time.Now().Add(-statsPeriod))
@@ -628,6 +673,7 @@ func rowValue(has bool, d time.Duration) float64 {
 
 func (c *LeftWidget) timerUpdate() {
 	height := c.lvItems.RowHeight()
+	c.shareSlot = len(sharedHosts(config.Get().Hosts)) > 0
 	for row := 0; row < c.lvItems.RowCount(); row++ {
 		hostConfig, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
 		if !ok || hostConfig == nil {

@@ -100,6 +100,7 @@ func (c *System) SyncHosts() {
 		// The name and the slow limit are only shown; what is pinged and how needs a restart
 		old := host.configHost
 		if w, ok := wanted[host.ID]; ok && w.Address() == old.Address() && w.Interval() == old.Interval() && w.Timeout() == old.Timeout() {
+			host.SetShare(w)
 			kept[host.ID] = host
 		} else {
 			stopping = append(stopping, host)

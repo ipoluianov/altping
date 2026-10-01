@@ -23,6 +23,8 @@ type TopWidget struct {
 	btnStop    *ui.ToolButton
 
 	btnTray *ui.ToolButton
+
+	btnShareOpen *ui.ToolButton
 }
 
 var lastCreatedTopWidget *TopWidget
@@ -56,13 +58,17 @@ func NewTopWidget() *TopWidget {
 	setIcon("stop", c.btnStop.SetImage)
 	c.btnStop.SetTooltipFunc(func() string { return T().ToolStop })
 
+	c.btnShareOpen = ui.NewToolButton(nil, "", c.onBtnShareOpen)
+	setIcon("share", c.btnShareOpen.SetImage)
+	c.btnShareOpen.SetTooltipFunc(func() string { return T().ToolShareOpen })
+
 	c.btnTray = ui.NewToolButton(nil, "", c.onBtnTray)
 	setIcon("tray", c.btnTray.SetImage)
 	c.btnTray.SetTooltipFunc(func() string { return T().ToolTray })
 
 	// Flat icons: the toolbar stays light, a button shows its shape under the mouse
 	for _, btn := range []*ui.ToolButton{c.btnAddItem, c.btnEditItem, c.btnRemoveItem,
-		c.btnDetails, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
+		c.btnDetails, c.btnShareOpen, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
 		btn.SetFlat(true)
 	}
 
@@ -73,15 +79,16 @@ func NewTopWidget() *TopWidget {
 	c.AddWidget(0, 10, ui.NewHSpacer())
 
 	c.AddWidget(0, 11, c.btnDetails)
-	c.AddWidget(0, 12, c.btnStart)
-	c.AddWidget(0, 13, c.btnStop)
+	c.AddWidget(0, 12, c.btnShareOpen)
+	c.AddWidget(0, 13, c.btnStart)
+	c.AddWidget(0, 14, c.btnStop)
 
 	groupSpace := ui.NewSpace()
 	groupSpace.SetSize(16, 0)
-	c.AddWidget(0, 14, groupSpace)
+	c.AddWidget(0, 15, groupSpace)
 
-	c.AddWidget(0, 15, c.btnOpen)
-	c.AddWidget(0, 16, c.btnTray)
+	c.AddWidget(0, 16, c.btnOpen)
+	c.AddWidget(0, 17, c.btnTray)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -99,9 +106,10 @@ func (c *TopWidget) timerUpdate() {
 		c.btnStop.SetEnabled(false)
 	}
 
-	// Only one host is edited at a time
+	// Only one host is edited at a time; pages are opened for the shared hosts
 	if lastCreatedLeftWidget != nil {
 		c.btnEditItem.SetEnabled(len(lastCreatedLeftWidget.GetSelectedHostConfigs()) == 1)
+		c.btnShareOpen.SetEnabled(len(sharedHosts(lastCreatedLeftWidget.GetSelectedHostConfigs())) > 0)
 	}
 
 	// An empty config: point to the first thing to do
@@ -162,9 +170,14 @@ func (c *TopWidget) onBtnAddItem() {
 				TimeoutMs:  hostConfig.TimeoutMs,
 				SlowMs:     hostConfig.SlowMs,
 				Notify:     hostConfig.Notify,
+				Share:      hostConfig.Share,
 			}
 			if len(addresses) == 1 {
 				host.DisplayName = hostConfig.DisplayName
+			}
+			// The first host gets the key the dialog showed, the others new ones (AddHost)
+			if firstID == "" {
+				host.ShareKey = hostConfig.ShareKey
 			}
 			if firstID == "" {
 				firstID = host.ID
@@ -196,6 +209,8 @@ func (c *TopWidget) onBtnEditItem() {
 			selectedHost.TimeoutMs = hostConfig.TimeoutMs
 			selectedHost.SlowMs = hostConfig.SlowMs
 			selectedHost.Notify = hostConfig.Notify
+			selectedHost.Share = hostConfig.Share
+			selectedHost.ShareKey = hostConfig.ShareKey
 			config.Get().Save()
 			lastCreatedLeftWidget.ApplyHostsChange(selectedHost.ID, -1)
 			lastCreatedLeftWidget.FocusTable()
@@ -263,6 +278,17 @@ func (c *TopWidget) onBtnStart() {
 
 func (c *TopWidget) onBtnStop() {
 	system.Get().Stop()
+}
+
+// onBtnShareOpen opens the u00.io pages of the selected hosts that are shared
+func (c *TopWidget) onBtnShareOpen() {
+	hosts := sharedHosts(lastCreatedLeftWidget.GetSelectedHostConfigs())
+	for i, host := range hosts {
+		if i == shareOpenMax {
+			break
+		}
+		openShareURL(c, *host)
+	}
 }
 
 func (c *TopWidget) onBtnTray() {

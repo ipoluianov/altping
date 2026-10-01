@@ -85,6 +85,9 @@ func loadDefaultConfig() {
 			cfg = NewConfig()
 		}
 	}
+	if cfg.ensureShareKeys() {
+		cfg.Save()
+	}
 	currentConfig = cfg
 	SaveLastConfigId()
 }
@@ -124,6 +127,9 @@ func LoadConfig(id string) error {
 	if err != nil {
 		return err
 	}
+	if c.ensureShareKeys() {
+		c.Save()
+	}
 	currentConfig = &c
 	// Remembered right away, so it is not lost if the program is not closed properly
 	SaveLastConfigId()
@@ -154,6 +160,7 @@ func CopyConfig(src *Config, name string) (*Config, error) {
 	for _, host := range src.Hosts {
 		h := *host
 		h.ID = GenerateRandomID()
+		h.ShareKey = NewShareKey() // the copy must not send to the same page
 		config.Hosts = append(config.Hosts, &h)
 	}
 	err = config.Save()

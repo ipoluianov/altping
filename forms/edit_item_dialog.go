@@ -28,6 +28,11 @@ type EditItemDialog struct {
 	numSlow     *ui.NumBox
 	chkNotify   *ui.Checkbox
 
+	chkShare     *ui.Checkbox
+	btnShareOpen *ui.Button
+	btnShareCopy *ui.Button
+	lblShareURL  *ui.Label
+
 	btnOK     *ui.Button
 	btnCancel *ui.Button
 
@@ -44,6 +49,10 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 
 	if hostConfig != nil {
 		c.hostConfig = *hostConfig
+	}
+	// A new host gets its key now, so its link can be copied before it is saved
+	if config.ShareAddress(c.hostConfig.ShareKey) == "" {
+		c.hostConfig.ShareKey = config.NewShareKey()
 	}
 
 	c.panelContent = ui.NewPanel()
@@ -120,8 +129,32 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.panelContent.AddWidget(7, 0, ui.NewLabel(T().Notify))
 	c.panelContent.AddWidget(7, 1, c.chkNotify)
 
+	// Sharing on u00.io: the page and its link are there before sharing is
+	// turned on, the buttons work once it is on
+	c.chkShare = ui.NewCheckbox(T().ShareOn)
+	c.chkShare.SetChecked(c.hostConfig.Share)
+	c.chkShare.SetTooltip(T().ShareTooltip)
+	c.chkShare.SetOnStateChanged(c.showShareRow)
+	c.panelContent.AddWidget(8, 0, ui.NewLabel(T().Share))
+	c.panelContent.AddWidget(8, 1, c.chkShare)
+
+	shareRow := ui.NewPanel()
+	shareRow.SetPanelPadding(0)
+	c.btnShareOpen = ui.NewButton(T().ShareOpen)
+	c.btnShareOpen.SetOnClick(func() { openShareURL(&c, c.hostConfig) })
+	c.btnShareCopy = ui.NewButton(T().ShareCopy)
+	c.btnShareCopy.SetOnClick(func() { copyShareURL(&c, c.hostConfig) })
+	c.lblShareURL = ui.NewLabel(shortShareURL(c.hostConfig))
+	c.lblShareURL.SetTooltip(c.hostConfig.ShareURL())
+	shareRow.AddWidget(0, 0, c.btnShareOpen)
+	shareRow.AddWidget(0, 1, c.btnShareCopy)
+	shareRow.AddWidget(0, 2, c.lblShareURL)
+	shareRow.AddWidget(0, 3, ui.NewHSpacer())
+	c.panelContent.AddWidget(9, 1, shareRow)
+	c.showShareRow()
+
 	c.OnDialogShow = func() {
-		c.Form().SetSize(480, 400)
+		c.Form().SetSize(520, 470)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
@@ -136,6 +169,18 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	}
 
 	return &c
+}
+
+// showShareRow enables the buttons of the page while sharing is on
+func (c *EditItemDialog) showShareRow() {
+	on := c.chkShare.Checked()
+	c.btnShareOpen.SetEnabled(on)
+	c.btnShareCopy.SetEnabled(on)
+	if on {
+		c.lblShareURL.SetForegroundColor(colorMuted.get())
+	} else {
+		c.lblShareURL.SetForegroundColor(ui.ThemeForegroundColorDisabled())
+	}
 }
 
 // showPortRow grays out the port field while the port check is off
@@ -166,6 +211,7 @@ func (c *EditItemDialog) GetHostConfig() *config.ConfigHost {
 	}
 	c.hostConfig.SlowMs = int(c.numSlow.Value())
 	c.hostConfig.Notify = c.chkNotify.Checked()
+	c.hostConfig.Share = c.chkShare.Checked()
 	return &c.hostConfig
 }
 
