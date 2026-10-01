@@ -29,6 +29,8 @@ func OnGlobalKeyDown(key ui.Key, mods ui.KeyModifiers) bool {
 		} else {
 			form.Maximize()
 		}
+	case key == ui.KeyT && noMods:
+		lastCreatedTopWidget.onBtnTray()
 	case key == ui.KeyH && ctrlOnly:
 		lastCreatedMainWidget.Form().Minimize()
 	case key == ui.KeyX && altOnly:

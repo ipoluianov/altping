@@ -21,6 +21,8 @@ type TopWidget struct {
 	btnDetails *ui.ToolButton
 	btnStart   *ui.ToolButton
 	btnStop    *ui.ToolButton
+
+	btnTray *ui.ToolButton
 }
 
 var lastCreatedTopWidget *TopWidget
@@ -56,6 +58,10 @@ func NewTopWidget() *TopWidget {
 	setIcon("stop", c.btnStop.SetImage)
 	c.btnStop.SetTooltipFunc(func() string { return T().ToolStop })
 
+	c.btnTray = ui.NewToolButton(nil, "", c.onBtnTray)
+	setIcon("tray", c.btnTray.SetImage)
+	c.btnTray.SetTooltipFunc(func() string { return T().ToolTray })
+
 	c.AddWidget(0, 4, c.btnAddItem)
 	c.AddWidget(0, 5, c.btnEditItem)
 	c.AddWidget(0, 6, c.btnRemoveItem)
@@ -71,6 +77,7 @@ func NewTopWidget() *TopWidget {
 	c.AddWidget(0, 14, groupSpace)
 
 	c.AddWidget(0, 15, c.btnOpen)
+	c.AddWidget(0, 16, c.btnTray)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -252,6 +259,10 @@ func (c *TopWidget) onBtnStart() {
 
 func (c *TopWidget) onBtnStop() {
 	system.Get().Stop()
+}
+
+func (c *TopWidget) onBtnTray() {
+	lastCreatedMainWidget.HideToTray()
 }
 
 func (c *TopWidget) onCreateConfigDialogAccept() {

@@ -166,11 +166,13 @@ func (c *MainForm) UpdateTitle() {
 		title = T().DownCount(c.downCount) + " " + title
 	}
 	c.Form().SetTitle(title)
+	updateTrayTooltip(title)
 }
 
 // ApplyLanguage updates the texts that do not follow the language by themselves
 func (c *MainForm) ApplyLanguage() {
 	c.UpdateTitle()
+	c.updateTrayMenu()
 	c.leftWidget.updateColumnNames()
 	c.leftWidget.timerUpdate()
 	c.details.applyLanguage()

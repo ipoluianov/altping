@@ -34,5 +34,6 @@ func main() {
 		mainForm.Activate()
 	})
 	form.Exec()
+	forms.CloseTray()
 	system.Get().Stop()
 }
