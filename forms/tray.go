@@ -30,6 +30,17 @@ func (c *MainForm) ShowFromTray() {
 	c.Form().Invoke(CloseTray)
 }
 
+// BringToFront shows the window on top of the others, wherever it is:
+// in the tray, minimized or under other windows. Called when the application is started again.
+func (c *MainForm) BringToFront() {
+	if trayIcon != nil {
+		c.ShowFromTray()
+		return
+	}
+	raiseWindow(c.Form())
+	c.Activate()
+}
+
 // quitFromTray closes the application from the tray menu
 func (c *MainForm) quitFromTray() {
 	// Closing from code does not call Form.OnClose, so the layout is saved here
