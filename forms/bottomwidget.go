@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipoluianov/altping/app"
 	"github.com/ipoluianov/altping/config"
+	"github.com/ipoluianov/altping/install"
 	"github.com/ipoluianov/altping/system"
 	"github.com/ipoluianov/nui/ui"
 )
@@ -46,8 +47,12 @@ func NewBottomWidget() *BottomWidget {
 	links := []*ui.Label{
 		newLinkLabel(func() string { return T().Settings }, func() { lastCreatedMainWidget.ShowSettings() }),
 		newLinkLabel(func() string { return T().Help }, func() { openDocs(&c, "help") }),
-		newLinkLabel(func() string { return T().About }, c.onAbout),
 	}
+	// A downloaded copy offers to install itself
+	if install.Available() {
+		links = append(links, newLinkLabel(func() string { return T().Install }, c.onInstall))
+	}
+	links = append(links, newLinkLabel(func() string { return T().About }, c.onAbout))
 	for i, lbl := range links {
 		if i > 0 {
 			space := ui.NewSpace()
@@ -92,6 +97,20 @@ func openDocs(parent ui.Widgeter, campaign string) {
 
 func (c *BottomWidget) onAbout() {
 	c.ShowDialog(NewAboutDialog())
+}
+
+// onInstall copies the application to ~/.altbins and registers it, then
+// quits for the installed copy to start (see main)
+func (c *BottomWidget) onInstall() {
+	ui.ShowQuestionMessageBoxOKCancel(c, T().Install, T().InstallAsk(install.Dir()), func() {
+		if err := install.Install(); err != nil {
+			ui.ShowMessageBox(c, T().Error, T().InstallFailed(err.Error()))
+			return
+		}
+		install.RelaunchAfterExit()
+		lastCreatedMainWidget.SaveWindowState()
+		lastCreatedMainWidget.Form().Close()
+	}, nil)
 }
 
 func (c *BottomWidget) timerUpdate() {

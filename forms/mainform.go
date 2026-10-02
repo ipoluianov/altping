@@ -93,6 +93,11 @@ func (c *MainForm) ShowStartupErrors() {
 	}
 }
 
+// ShowInstalled tells that this copy has just been installed and started in place of the downloaded one
+func (c *MainForm) ShowInstalled() {
+	ui.ShowToast(c, T().Installed, ui.ToastSuccess)
+}
+
 // ShowSettings opens the settings dialog
 func (c *MainForm) ShowSettings() {
 	c.ShowDialog(NewSettingsDialog(config.GetSettings(), c.ApplySettings))

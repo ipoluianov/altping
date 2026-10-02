@@ -23,10 +23,7 @@ fi
 
 # Numeric version for Info.plist: v1.2.3-4-gabc -> 1.2.3
 SHORT_VERSION="$(printf '%s' "$VERSION" | sed -E 's/^v//; s/-.*//')"
-case "$SHORT_VERSION" in
-  [0-9]*) ;;
-  *) SHORT_VERSION="0.0.0" ;;
-esac
+[[ "$SHORT_VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]] || SHORT_VERSION="0.0.0"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT

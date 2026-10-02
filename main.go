@@ -1,14 +1,23 @@
 package main
 
 import (
+	"github.com/ipoluianov/altping/app"
 	"github.com/ipoluianov/altping/config"
 	"github.com/ipoluianov/altping/forms"
+	"github.com/ipoluianov/altping/install"
 	"github.com/ipoluianov/altping/instance"
 	"github.com/ipoluianov/altping/system"
 	"github.com/ipoluianov/nui/ui"
 )
 
 func main() {
+	install.SetIcon(iconPNG)
+	// Started from "Installed apps" to remove it
+	if install.HasArg(install.UninstallArg) {
+		uninstall(install.HasArg(install.QuietArg))
+		return
+	}
+
 	// Taken before anything is read or written: the files belong to one copy
 	inst, ok := instance.Acquire(config.ConfigDirectory())
 	if !ok {
@@ -42,8 +51,19 @@ func main() {
 		form.SetAlwaysOnTop(config.GetSettings().AlwaysOnTop)
 		mainForm.Activate()
 		mainForm.ShowStartupErrors()
+		if install.HasArg(install.InstalledArg) {
+			mainForm.ShowInstalled()
+		}
 	})
 	form.Exec()
 	forms.CloseTray()
 	system.Get().Stop()
+
+	// Installed from this copy: the installed one takes over, so the lock goes first
+	if install.RelaunchPending() {
+		inst.Close()
+		if err := install.StartInstalled(); err != nil {
+			install.Inform(app.DisplayName, err.Error())
+		}
+	}
 }

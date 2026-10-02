@@ -158,6 +158,15 @@ type Strings struct {
 	SavedTo     func(path string) string
 	// At start, when the last opened config could not be read
 	ConfigLoadFailed func(err string) string
+
+	// Installing a downloaded copy to ~/.altbins (Windows) and removing it
+	Install          string
+	InstallAsk       func(dir string) string
+	InstallFailed    func(err string) string
+	Installed        string // a toast in the installed copy
+	UninstallAsk     func(dir string) string
+	UninstallRunning string
+	Uninstalled      string
 }
 
 // ColumnStrings are the names of the table columns
@@ -339,6 +348,18 @@ var en = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "The host list could not be read, a new empty one was opened. The file was left as is:\n\n" + err
 	},
+
+	Install: "Install",
+	InstallAsk: func(dir string) string {
+		return "AltPing will be copied to " + dir + " and added to the Start menu, the desktop and the list of installed apps. If it is already installed there, it is updated. Settings and host lists stay as they are.\n\nAltPing will then restart from there."
+	},
+	InstallFailed: func(err string) string { return "AltPing could not be installed:\n\n" + err },
+	Installed:     "AltPing is installed",
+	UninstallAsk: func(dir string) string {
+		return "Remove AltPing from this computer?\n\nSettings and host lists stay in " + dir
+	},
+	UninstallRunning: "AltPing is running. Close it and try again.",
+	Uninstalled:      "AltPing has been removed.",
 }
 
 var ru = Strings{
@@ -481,6 +502,18 @@ var ru = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Не удалось прочитать список хостов, открыт новый пустой. Файл оставлен как есть:\n\n" + err
 	},
+
+	Install: "Установить",
+	InstallAsk: func(dir string) string {
+		return "AltPing будет скопирован в " + dir + " и добавлен в меню «Пуск», на рабочий стол и в список установленных приложений. Если он там уже установлен, он обновится. Настройки и списки хостов останутся как есть.\n\nЗатем AltPing перезапустится оттуда."
+	},
+	InstallFailed: func(err string) string { return "Не удалось установить AltPing:\n\n" + err },
+	Installed:     "AltPing установлен",
+	UninstallAsk: func(dir string) string {
+		return "Удалить AltPing с этого компьютера?\n\nНастройки и списки хостов останутся в " + dir
+	},
+	UninstallRunning: "AltPing запущен. Закройте его и попробуйте снова.",
+	Uninstalled:      "AltPing удалён.",
 }
 
 var pl = Strings{
@@ -623,6 +656,18 @@ var pl = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Nie udało się odczytać listy hostów, otwarto nową pustą. Plik pozostawiono bez zmian:\n\n" + err
 	},
+
+	Install: "Zainstaluj",
+	InstallAsk: func(dir string) string {
+		return "AltPing zostanie skopiowany do " + dir + " i dodany do menu Start, na pulpit i do listy zainstalowanych aplikacji. Jeśli jest już tam zainstalowany, zostanie zaktualizowany. Ustawienia i listy hostów pozostaną bez zmian.\n\nNastępnie AltPing uruchomi się ponownie z tego miejsca."
+	},
+	InstallFailed: func(err string) string { return "Nie udało się zainstalować AltPing:\n\n" + err },
+	Installed:     "AltPing został zainstalowany",
+	UninstallAsk: func(dir string) string {
+		return "Usunąć AltPing z tego komputera?\n\nUstawienia i listy hostów pozostaną w " + dir
+	},
+	UninstallRunning: "AltPing jest uruchomiony. Zamknij go i spróbuj ponownie.",
+	Uninstalled:      "AltPing został usunięty.",
 }
 
 // Serbian in Cyrillic, the script of the "sr" tag
@@ -766,6 +811,20 @@ var sr = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Листа хостова није могла да се прочита, отворена је нова празна. Датотека је остављена каква јесте:\n\n" + err
 	},
+
+	Install: "Инсталирај",
+	InstallAsk: func(dir string) string {
+		return "AltPing ће бити копиран у " + dir + " и додат у мени Старт, на радну површину и у листу инсталираних апликација. Ако је тамо већ инсталиран, биће ажуриран. Подешавања и листе хостова остају непромењени.\n\nЗатим ће се AltPing поново покренути одатле."
+	},
+	InstallFailed: func(err string) string {
+		return "Инсталирање програма AltPing није успело:\n\n" + err
+	},
+	Installed: "AltPing је инсталиран",
+	UninstallAsk: func(dir string) string {
+		return "Уклонити AltPing са овог рачунара?\n\nПодешавања и листе хостова остају у " + dir
+	},
+	UninstallRunning: "AltPing је покренут. Затворите га и покушајте поново.",
+	Uninstalled:      "AltPing је уклоњен.",
 }
 
 var de = Strings{
@@ -909,6 +968,18 @@ var de = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Die Hostliste konnte nicht gelesen werden, eine neue leere wurde geöffnet. Die Datei wurde unverändert gelassen:\n\n" + err
 	},
+
+	Install: "Installieren",
+	InstallAsk: func(dir string) string {
+		return "AltPing wird nach " + dir + " kopiert und zum Startmenü, zum Desktop und zur Liste der installierten Apps hinzugefügt. Ist es dort bereits installiert, wird es aktualisiert. Einstellungen und Hostlisten bleiben erhalten.\n\nAnschließend startet AltPing von dort neu."
+	},
+	InstallFailed: func(err string) string { return "AltPing konnte nicht installiert werden:\n\n" + err },
+	Installed:     "AltPing ist installiert",
+	UninstallAsk: func(dir string) string {
+		return "AltPing von diesem Computer entfernen?\n\nEinstellungen und Hostlisten bleiben in " + dir
+	},
+	UninstallRunning: "AltPing läuft. Schließen Sie es und versuchen Sie es erneut.",
+	Uninstalled:      "AltPing wurde entfernt.",
 }
 
 var fr = Strings{
@@ -1052,6 +1123,18 @@ var fr = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Impossible de lire la liste des hôtes, une nouvelle liste vide a été ouverte. Le fichier a été laissé tel quel :\n\n" + err
 	},
+
+	Install: "Installer",
+	InstallAsk: func(dir string) string {
+		return "AltPing sera copié dans " + dir + " et ajouté au menu Démarrer, au bureau et à la liste des applications installées. S'il y est déjà installé, il sera mis à jour. Les paramètres et les listes d'hôtes restent inchangés.\n\nAltPing redémarrera ensuite depuis cet emplacement."
+	},
+	InstallFailed: func(err string) string { return "Impossible d'installer AltPing :\n\n" + err },
+	Installed:     "AltPing est installé",
+	UninstallAsk: func(dir string) string {
+		return "Supprimer AltPing de cet ordinateur ?\n\nLes paramètres et les listes d'hôtes restent dans " + dir
+	},
+	UninstallRunning: "AltPing est en cours d'exécution. Fermez-le et réessayez.",
+	Uninstalled:      "AltPing a été supprimé.",
 }
 
 var es = Strings{
@@ -1192,6 +1275,18 @@ var es = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "No se pudo leer la lista de hosts; se abrió una nueva vacía. El archivo se dejó tal cual:\n\n" + err
 	},
+
+	Install: "Instalar",
+	InstallAsk: func(dir string) string {
+		return "AltPing se copiará en " + dir + " y se añadirá al menú Inicio, al escritorio y a la lista de aplicaciones instaladas. Si ya está instalado allí, se actualizará. La configuración y las listas de hosts se mantienen.\n\nDespués, AltPing se reiniciará desde allí."
+	},
+	InstallFailed: func(err string) string { return "No se pudo instalar AltPing:\n\n" + err },
+	Installed:     "AltPing está instalado",
+	UninstallAsk: func(dir string) string {
+		return "¿Eliminar AltPing de este equipo?\n\nLa configuración y las listas de hosts se quedan en " + dir
+	},
+	UninstallRunning: "AltPing se está ejecutando. Ciérrelo e inténtelo de nuevo.",
+	Uninstalled:      "AltPing se ha eliminado.",
 }
 
 var it = Strings{
@@ -1332,6 +1427,18 @@ var it = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Impossibile leggere l'elenco degli host, ne è stato aperto uno nuovo vuoto. Il file è stato lasciato invariato:\n\n" + err
 	},
+
+	Install: "Installa",
+	InstallAsk: func(dir string) string {
+		return "AltPing verrà copiato in " + dir + " e aggiunto al menu Start, al desktop e all'elenco delle app installate. Se è già installato lì, verrà aggiornato. Le impostazioni e gli elenchi degli host restano invariati.\n\nPoi AltPing verrà riavviato da lì."
+	},
+	InstallFailed: func(err string) string { return "Impossibile installare AltPing:\n\n" + err },
+	Installed:     "AltPing è installato",
+	UninstallAsk: func(dir string) string {
+		return "Rimuovere AltPing da questo computer?\n\nLe impostazioni e gli elenchi degli host restano in " + dir
+	},
+	UninstallRunning: "AltPing è in esecuzione. Chiudilo e riprova.",
+	Uninstalled:      "AltPing è stato rimosso.",
 }
 
 var pt = Strings{
@@ -1472,6 +1579,18 @@ var pt = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "Não foi possível ler a lista de hosts; uma nova lista vazia foi aberta. O arquivo foi mantido como está:\n\n" + err
 	},
+
+	Install: "Instalar",
+	InstallAsk: func(dir string) string {
+		return "O AltPing será copiado para " + dir + " e adicionado ao menu Iniciar, à área de trabalho e à lista de aplicativos instalados. Se já estiver instalado lá, será atualizado. As configurações e as listas de hosts permanecem como estão.\n\nEm seguida, o AltPing será reiniciado a partir de lá."
+	},
+	InstallFailed: func(err string) string { return "Não foi possível instalar o AltPing:\n\n" + err },
+	Installed:     "O AltPing está instalado",
+	UninstallAsk: func(dir string) string {
+		return "Remover o AltPing deste computador?\n\nAs configurações e as listas de hosts permanecem em " + dir
+	},
+	UninstallRunning: "O AltPing está em execução. Feche-o e tente novamente.",
+	Uninstalled:      "O AltPing foi removido.",
 }
 
 var zh = Strings{
@@ -1610,6 +1729,18 @@ var zh = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "无法读取主机列表，已打开一个新的空列表。原文件保持不变：\n\n" + err
 	},
+
+	Install: "安装",
+	InstallAsk: func(dir string) string {
+		return "AltPing 将被复制到 " + dir + "，并添加到“开始”菜单、桌面和已安装应用列表中。如果已在该位置安装，则会进行更新。设置和主机列表保持不变。\n\n随后 AltPing 将从该位置重新启动。"
+	},
+	InstallFailed: func(err string) string { return "无法安装 AltPing：\n\n" + err },
+	Installed:     "AltPing 已安装",
+	UninstallAsk: func(dir string) string {
+		return "要从此计算机中删除 AltPing 吗？\n\n设置和主机列表将保留在 " + dir
+	},
+	UninstallRunning: "AltPing 正在运行。请关闭它后重试。",
+	Uninstalled:      "AltPing 已删除。",
 }
 
 var ja = Strings{
@@ -1748,6 +1879,18 @@ var ja = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "ホスト一覧を読み込めなかったため、新しい空の一覧を開きました。ファイルはそのまま残してあります:\n\n" + err
 	},
+
+	Install: "インストール",
+	InstallAsk: func(dir string) string {
+		return "AltPing を " + dir + " にコピーし、スタート メニュー、デスクトップ、インストール済みアプリの一覧に追加します。すでにインストールされている場合は更新されます。設定とホストの一覧はそのまま残ります。\n\nその後、AltPing はそこから再起動します。"
+	},
+	InstallFailed: func(err string) string { return "AltPing をインストールできませんでした:\n\n" + err },
+	Installed:     "AltPing をインストールしました",
+	UninstallAsk: func(dir string) string {
+		return "このコンピューターから AltPing を削除しますか?\n\n設定とホストの一覧は " + dir + " に残ります。"
+	},
+	UninstallRunning: "AltPing が実行中です。閉じてからもう一度お試しください。",
+	Uninstalled:      "AltPing を削除しました。",
 }
 
 var ko = Strings{
@@ -1886,6 +2029,18 @@ var ko = Strings{
 	ConfigLoadFailed: func(err string) string {
 		return "호스트 목록을 읽을 수 없어 새 빈 목록을 열었습니다. 파일은 그대로 두었습니다:\n\n" + err
 	},
+
+	Install: "설치",
+	InstallAsk: func(dir string) string {
+		return "AltPing이 " + dir + "에 복사되고 시작 메뉴, 바탕 화면, 설치된 앱 목록에 추가됩니다. 이미 설치되어 있으면 업데이트됩니다. 설정과 호스트 목록은 그대로 유지됩니다.\n\n그런 다음 AltPing이 그 위치에서 다시 시작됩니다."
+	},
+	InstallFailed: func(err string) string { return "AltPing을 설치할 수 없습니다:\n\n" + err },
+	Installed:     "AltPing이 설치되었습니다",
+	UninstallAsk: func(dir string) string {
+		return "이 컴퓨터에서 AltPing을 제거하시겠습니까?\n\n설정과 호스트 목록은 " + dir + "에 남아 있습니다."
+	},
+	UninstallRunning: "AltPing이 실행 중입니다. 닫은 후 다시 시도하세요.",
+	Uninstalled:      "AltPing이 제거되었습니다.",
 }
 
 var catalog = i18n.NewCatalog(en, map[string]Strings{
