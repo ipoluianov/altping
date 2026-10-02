@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AltPing
+Comment=Network host availability monitor
+Exec=altping
+Icon=altping
+Terminal=false
+Categories=Network;Utility;
+StartupNotify=false
