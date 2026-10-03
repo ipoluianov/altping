@@ -8,6 +8,8 @@ without root rights.
 
 Website and documentation: https://altbins.pro/altping/
 
+![AltPing main window: a list of hosts with response times, a 5-minute trend and loss/jitter statistics](screenshots/Screenshot_20261002_134341.png)
+
 ## Features
 
 - **Checks.** ICMP ping over IPv4 and IPv6, or a TCP connect to a port.
