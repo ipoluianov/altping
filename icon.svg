@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect x="8" y="8" width="240" height="240" rx="48" fill="#1e88e5"/>
-  <circle cx="64" cy="192" r="18" fill="#ffffff"/>
-  <path d="M64 136 A56 56 0 0 1 120 192" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
-  <path d="M64 96 A96 96 0 0 1 160 192" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-opacity="0.8"/>
-  <path d="M64 56 A136 136 0 0 1 200 192" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-opacity="0.55"/>
+  <!-- Adobe-style tile: dark square with a light frame, the glyph inside -->
+  <rect x="8" y="8" width="240" height="240" rx="44" fill="#001e36"/>
+  <rect x="18" y="18" width="220" height="220" rx="36" fill="none" stroke="#31a8ff" stroke-width="10"/>
+  <!-- Connection sign: up and down half-arrows, flat where they face each other -->
+  <path d="M120 60V194H98V114H70ZM136 196V62H158V142H186Z" fill="#31a8ff" stroke="#31a8ff" stroke-width="6" stroke-linejoin="round"/>
 </svg>
