@@ -24,6 +24,9 @@ contents:
   - src: icon.png
     dst: /usr/share/icons/hicolor/256x256/apps/altping.png
 
+scripts:
+  preremove: build/preremove.sh
+
 # nui loads these with dlopen at runtime; only libX11 is mandatory
 overrides:
   deb:
