@@ -8,7 +8,7 @@ without root rights.
 
 Website and documentation: https://altbins.pro/altping/
 
-![AltPing main window: a list of hosts with response times, a 5-minute trend and loss/jitter statistics](screenshots/Screenshot_20261002_134341.png)
+![AltPing main window: a list of hosts with response times, a 5-minute trend, loss/jitter statistics and the ping history chart of the selected host](https://github.com/ipoluianov/altping/releases/latest/download/screenshot.png)
 
 ## Features
 
