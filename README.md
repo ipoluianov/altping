@@ -38,14 +38,14 @@ Website and documentation: https://altbins.pro/altping/
 Download a build for your system from the
 [releases](https://github.com/ipoluianov/altping/releases):
 
-- **Windows:** `altping-windows-*.exe`. When started, it offers to install
+- **Windows:** `altping.exe`. When started, it offers to install
   itself into `%USERPROFILE%\.altbins`. Remove it from "Installed apps".
-- **macOS:** the `.dmg` image.
+- **macOS** (Apple Silicon): the `.dmg` image.
 - **Linux:** a `.deb` or `.rpm` package, or a user-level install (no root)
   with:
 
   ```sh
-  curl -fsSL https://github.com/ipoluianov/altping/releases/latest/download/linux-x64-install.sh | bash
+  curl -fsSL https://github.com/ipoluianov/altping/releases/latest/download/linux-install.sh | bash
   ```
 
 Settings, host lists and history are stored in `~/.altbins/.altping/`.

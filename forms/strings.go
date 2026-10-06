@@ -161,6 +161,8 @@ type Strings struct {
 
 	// Installing a downloaded copy to ~/.altbins (Windows) and removing it
 	Install          string
+	Update           string // an older version is installed
+	Uninstall        string
 	InstallAsk       func(dir string) string
 	InstallFailed    func(err string) string
 	Installed        string // a toast in the installed copy
@@ -349,7 +351,9 @@ var en = Strings{
 		return "The host list could not be read, a new empty one was opened. The file was left as is:\n\n" + err
 	},
 
-	Install: "Install",
+	Install:   "Install",
+	Update:    "Update",
+	Uninstall: "Uninstall",
 	InstallAsk: func(dir string) string {
 		return "AltPing will be copied to " + dir + " and added to the Start menu, the desktop and the list of installed apps. If it is already installed there, it is updated. Settings and host lists stay as they are.\n\nAltPing will then restart from there."
 	},
@@ -503,7 +507,9 @@ var ru = Strings{
 		return "Не удалось прочитать список хостов, открыт новый пустой. Файл оставлен как есть:\n\n" + err
 	},
 
-	Install: "Установить",
+	Install:   "Установить",
+	Update:    "Обновить",
+	Uninstall: "Удалить",
 	InstallAsk: func(dir string) string {
 		return "AltPing будет скопирован в " + dir + " и добавлен в меню «Пуск», на рабочий стол и в список установленных приложений. Если он там уже установлен, он обновится. Настройки и списки хостов останутся как есть.\n\nЗатем AltPing перезапустится оттуда."
 	},
@@ -657,7 +663,9 @@ var pl = Strings{
 		return "Nie udało się odczytać listy hostów, otwarto nową pustą. Plik pozostawiono bez zmian:\n\n" + err
 	},
 
-	Install: "Zainstaluj",
+	Install:   "Zainstaluj",
+	Update:    "Zaktualizuj",
+	Uninstall: "Odinstaluj",
 	InstallAsk: func(dir string) string {
 		return "AltPing zostanie skopiowany do " + dir + " i dodany do menu Start, na pulpit i do listy zainstalowanych aplikacji. Jeśli jest już tam zainstalowany, zostanie zaktualizowany. Ustawienia i listy hostów pozostaną bez zmian.\n\nNastępnie AltPing uruchomi się ponownie z tego miejsca."
 	},
@@ -812,7 +820,9 @@ var sr = Strings{
 		return "Листа хостова није могла да се прочита, отворена је нова празна. Датотека је остављена каква јесте:\n\n" + err
 	},
 
-	Install: "Инсталирај",
+	Install:   "Инсталирај",
+	Update:    "Ажурирај",
+	Uninstall: "Деинсталирај",
 	InstallAsk: func(dir string) string {
 		return "AltPing ће бити копиран у " + dir + " и додат у мени Старт, на радну површину и у листу инсталираних апликација. Ако је тамо већ инсталиран, биће ажуриран. Подешавања и листе хостова остају непромењени.\n\nЗатим ће се AltPing поново покренути одатле."
 	},
@@ -969,7 +979,9 @@ var de = Strings{
 		return "Die Hostliste konnte nicht gelesen werden, eine neue leere wurde geöffnet. Die Datei wurde unverändert gelassen:\n\n" + err
 	},
 
-	Install: "Installieren",
+	Install:   "Installieren",
+	Update:    "Aktualisieren",
+	Uninstall: "Deinstallieren",
 	InstallAsk: func(dir string) string {
 		return "AltPing wird nach " + dir + " kopiert und zum Startmenü, zum Desktop und zur Liste der installierten Apps hinzugefügt. Ist es dort bereits installiert, wird es aktualisiert. Einstellungen und Hostlisten bleiben erhalten.\n\nAnschließend startet AltPing von dort neu."
 	},
@@ -1124,7 +1136,9 @@ var fr = Strings{
 		return "Impossible de lire la liste des hôtes, une nouvelle liste vide a été ouverte. Le fichier a été laissé tel quel :\n\n" + err
 	},
 
-	Install: "Installer",
+	Install:   "Installer",
+	Update:    "Mettre à jour",
+	Uninstall: "Désinstaller",
 	InstallAsk: func(dir string) string {
 		return "AltPing sera copié dans " + dir + " et ajouté au menu Démarrer, au bureau et à la liste des applications installées. S'il y est déjà installé, il sera mis à jour. Les paramètres et les listes d'hôtes restent inchangés.\n\nAltPing redémarrera ensuite depuis cet emplacement."
 	},
@@ -1276,7 +1290,9 @@ var es = Strings{
 		return "No se pudo leer la lista de hosts; se abrió una nueva vacía. El archivo se dejó tal cual:\n\n" + err
 	},
 
-	Install: "Instalar",
+	Install:   "Instalar",
+	Update:    "Actualizar",
+	Uninstall: "Desinstalar",
 	InstallAsk: func(dir string) string {
 		return "AltPing se copiará en " + dir + " y se añadirá al menú Inicio, al escritorio y a la lista de aplicaciones instaladas. Si ya está instalado allí, se actualizará. La configuración y las listas de hosts se mantienen.\n\nDespués, AltPing se reiniciará desde allí."
 	},
@@ -1428,7 +1444,9 @@ var it = Strings{
 		return "Impossibile leggere l'elenco degli host, ne è stato aperto uno nuovo vuoto. Il file è stato lasciato invariato:\n\n" + err
 	},
 
-	Install: "Installa",
+	Install:   "Installa",
+	Update:    "Aggiorna",
+	Uninstall: "Disinstalla",
 	InstallAsk: func(dir string) string {
 		return "AltPing verrà copiato in " + dir + " e aggiunto al menu Start, al desktop e all'elenco delle app installate. Se è già installato lì, verrà aggiornato. Le impostazioni e gli elenchi degli host restano invariati.\n\nPoi AltPing verrà riavviato da lì."
 	},
@@ -1580,7 +1598,9 @@ var pt = Strings{
 		return "Não foi possível ler a lista de hosts; uma nova lista vazia foi aberta. O arquivo foi mantido como está:\n\n" + err
 	},
 
-	Install: "Instalar",
+	Install:   "Instalar",
+	Update:    "Atualizar",
+	Uninstall: "Desinstalar",
 	InstallAsk: func(dir string) string {
 		return "O AltPing será copiado para " + dir + " e adicionado ao menu Iniciar, à área de trabalho e à lista de aplicativos instalados. Se já estiver instalado lá, será atualizado. As configurações e as listas de hosts permanecem como estão.\n\nEm seguida, o AltPing será reiniciado a partir de lá."
 	},
@@ -1730,7 +1750,9 @@ var zh = Strings{
 		return "无法读取主机列表，已打开一个新的空列表。原文件保持不变：\n\n" + err
 	},
 
-	Install: "安装",
+	Install:   "安装",
+	Update:    "更新",
+	Uninstall: "卸载",
 	InstallAsk: func(dir string) string {
 		return "AltPing 将被复制到 " + dir + "，并添加到“开始”菜单、桌面和已安装应用列表中。如果已在该位置安装，则会进行更新。设置和主机列表保持不变。\n\n随后 AltPing 将从该位置重新启动。"
 	},
@@ -1880,7 +1902,9 @@ var ja = Strings{
 		return "ホスト一覧を読み込めなかったため、新しい空の一覧を開きました。ファイルはそのまま残してあります:\n\n" + err
 	},
 
-	Install: "インストール",
+	Install:   "インストール",
+	Update:    "更新",
+	Uninstall: "アンインストール",
 	InstallAsk: func(dir string) string {
 		return "AltPing を " + dir + " にコピーし、スタート メニュー、デスクトップ、インストール済みアプリの一覧に追加します。すでにインストールされている場合は更新されます。設定とホストの一覧はそのまま残ります。\n\nその後、AltPing はそこから再起動します。"
 	},
@@ -2030,7 +2054,9 @@ var ko = Strings{
 		return "호스트 목록을 읽을 수 없어 새 빈 목록을 열었습니다. 파일은 그대로 두었습니다:\n\n" + err
 	},
 
-	Install: "설치",
+	Install:   "설치",
+	Update:    "업데이트",
+	Uninstall: "제거",
 	InstallAsk: func(dir string) string {
 		return "AltPing이 " + dir + "에 복사되고 시작 메뉴, 바탕 화면, 설치된 앱 목록에 추가됩니다. 이미 설치되어 있으면 업데이트됩니다. 설정과 호스트 목록은 그대로 유지됩니다.\n\n그런 다음 AltPing이 그 위치에서 다시 시작됩니다."
 	},

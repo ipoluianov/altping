@@ -21,6 +21,9 @@ type BottomWidget struct {
 	statusDotColor color.RGBA
 	lblStatus      *ui.Label
 	lblMode        *ui.Label
+
+	// What the install link does: install, update or uninstall
+	installStatus install.Status
 }
 
 func NewBottomWidget() *BottomWidget {
@@ -48,9 +51,10 @@ func NewBottomWidget() *BottomWidget {
 		newLinkLabel(func() string { return T().Settings }, func() { lastCreatedMainWidget.ShowSettings() }),
 		newLinkLabel(func() string { return T().Help }, func() { openDocs(&c, "help") }),
 	}
-	// A downloaded copy offers to install itself
-	if install.Available() {
-		links = append(links, newLinkLabel(func() string { return T().Install }, c.onInstall))
+	// A downloaded copy offers to install or update itself, the installed one to be removed
+	c.installStatus = install.CurrentStatus()
+	if c.installStatus != install.StatusNone {
+		links = append(links, newLinkLabel(c.installText, c.onInstallLink))
 	}
 	links = append(links, newLinkLabel(func() string { return T().About }, c.onAbout))
 	for i, lbl := range links {
@@ -99,10 +103,30 @@ func (c *BottomWidget) onAbout() {
 	c.ShowDialog(NewAboutDialog())
 }
 
+// installText is the text of the install link for what it does now
+func (c *BottomWidget) installText() string {
+	switch c.installStatus {
+	case install.StatusUpdate:
+		return T().Update
+	case install.StatusUninstall:
+		return T().Uninstall
+	}
+	return T().Install
+}
+
+func (c *BottomWidget) onInstallLink() {
+	if c.installStatus == install.StatusUninstall {
+		c.onUninstall()
+		return
+	}
+	c.onInstall()
+}
+
 // onInstall copies the application to ~/.altbins and registers it, then
-// quits for the installed copy to start (see main)
+// quits for the installed copy to start (see main). Over an older installed
+// version it is the same: that one is replaced.
 func (c *BottomWidget) onInstall() {
-	ui.ShowQuestionMessageBoxOKCancel(c, T().Install, T().InstallAsk(install.Dir()), func() {
+	ui.ShowQuestionMessageBoxOKCancel(c, c.installText(), T().InstallAsk(install.Dir()), func() {
 		if err := install.Install(); err != nil {
 			ui.ShowMessageBox(c, T().Error, T().InstallFailed(err.Error()))
 			return
@@ -110,6 +134,25 @@ func (c *BottomWidget) onInstall() {
 		install.RelaunchAfterExit()
 		lastCreatedMainWidget.SaveWindowState()
 		lastCreatedMainWidget.Form().Close()
+	}, nil)
+}
+
+// onUninstall removes the installed copy; the settings and host lists stay.
+// When that is this copy, it quits and its binary is deleted once it has.
+func (c *BottomWidget) onUninstall() {
+	ui.ShowQuestionMessageBoxOKCancel(c, T().Uninstall, T().UninstallAsk(config.ConfigDirectory()), func() {
+		installed := install.IsInstalledCopy()
+		if err := install.Uninstall(); err != nil {
+			ui.ShowMessageBox(c, T().Error, err.Error())
+			return
+		}
+		if installed {
+			lastCreatedMainWidget.SaveWindowState()
+			lastCreatedMainWidget.Form().Close()
+			return
+		}
+		c.installStatus = install.CurrentStatus()
+		ui.ShowToast(c, T().Uninstalled, ui.ToastSuccess)
 	}, nil)
 }
 
