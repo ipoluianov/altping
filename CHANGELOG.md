@@ -15,7 +15,8 @@ Changes since v0.0.15.
 - Linux: `.deb` and `.rpm` packages.
 - Linux: `linux-install.sh` (replaces `linux-x64-install.sh`) installs the
   x86-64 or ARM64 build, whichever fits the machine.
-- macOS: a `.dmg` with AltPing.app.
+- macOS: a `.dmg` with AltPing.app, signed and notarized, so it opens
+  without the Gatekeeper warning.
 - Only one copy runs at a time. Starting AltPing again brings the running
   window to the front, even from the tray.
 

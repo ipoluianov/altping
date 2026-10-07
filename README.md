@@ -63,14 +63,8 @@ apps" or with the **Uninstall** link.
 
 ### macOS
 
-Open the `.dmg` and drag AltPing to Applications. The app is not notarized,
-so macOS blocks the first start. Open **System Settings → Privacy &
-Security**, find the message about AltPing and click **Open Anyway**.
-Or remove the quarantine flag in Terminal:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/AltPing.app
-```
+Open the `.dmg` and drag AltPing to Applications. The app is signed and
+notarized by Apple, so it starts without warnings.
 
 ### Linux
 
@@ -105,6 +99,11 @@ go build .
 
 `build/all.sh` (or `build/all.bat`) builds every platform into `bin/`,
 together with the deb/rpm packages, the dmg and the installer script.
+On macOS the dmg is signed with the Developer ID from the login keychain
+(`MACOS_SIGN_IDENTITY`), and `build/all.sh` notarizes it with the `notary`
+profile of `xcrun notarytool store-credentials` (`MACOS_NOTARY_PROFILE`).
+`build/notarize.sh` notarizes the dmgs of the newest build on its own.
+Without the certificate the dmg is built unsigned.
 
 ## License
 
