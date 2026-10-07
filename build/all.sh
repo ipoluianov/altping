@@ -12,5 +12,3 @@ done
 if [ "$(uname)" = Darwin ]; then
   "$DIR/notarize.sh" "$DIR/../bin/${BUILD_STAMP}"-*/*.dmg
 fi
-# The README screenshot on model data, in a virtual X server; skipped where it cannot run
-"$DIR/_screenshot.sh" || echo "Screenshot failed, the builds are done"
