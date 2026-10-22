@@ -5,6 +5,10 @@ import "github.com/ipoluianov/nui/ui"
 // OnGlobalKeyDown handles the application hotkeys. A key with modifiers
 // that is not a hotkey is passed on to the focused widget (e.g. Ctrl+A to the table).
 func OnGlobalKeyDown(key ui.Key, mods ui.KeyModifiers) bool {
+	// An open menu takes the keys: Enter picks its item, not edits the host
+	if lastCreatedMainWidget.Form().TopPopupWidget() != nil {
+		return false
+	}
 	noMods := !mods.Shift && !mods.Alt && !mods.Ctrl && !mods.Cmd
 	altOnly := !mods.Shift && mods.Alt && !mods.Ctrl && !mods.Cmd
 	ctrlOnly := !mods.Shift && !mods.Alt && mods.Ctrl && !mods.Cmd
