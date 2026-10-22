@@ -24,7 +24,7 @@ type TopWidget struct {
 
 	btnTray *ui.ToolButton
 
-	btnShareOpen *ui.ToolButton
+	btnShareOpen *ui.Button
 }
 
 var lastCreatedTopWidget *TopWidget
@@ -58,8 +58,13 @@ func NewTopWidget() *TopWidget {
 	setIcon("stop", c.btnStop.SetImage)
 	c.btnStop.SetTooltipFunc(func() string { return T().ToolStop })
 
-	c.btnShareOpen = ui.NewToolButton(nil, "", c.onBtnShareOpen)
-	setIcon("share", c.btnShareOpen.SetImage)
+	// The u00.io page stands out among the icons: a button with its name, in the middle
+	c.btnShareOpen = ui.NewButton("")
+	c.btnShareOpen.SetTextFunc(func() string { return T().MenuShareOpen })
+	c.btnShareOpen.SetOnClick(c.onBtnShareOpen)
+	c.btnShareOpen.SetEnabled(false) // until a shared host is selected
+	// Like the icons, it leaves the keys to the table: U opens the pages
+	c.btnShareOpen.SetCanBeFocused(false)
 	c.btnShareOpen.SetTooltipFunc(func() string { return T().ToolShareOpen })
 
 	c.btnTray = ui.NewToolButton(nil, "", c.onBtnTray)
@@ -68,27 +73,49 @@ func NewTopWidget() *TopWidget {
 
 	// Flat icons: the toolbar stays light, a button shows its shape under the mouse
 	for _, btn := range []*ui.ToolButton{c.btnAddItem, c.btnEditItem, c.btnRemoveItem,
-		c.btnDetails, c.btnShareOpen, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
+		c.btnDetails, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
 		btn.SetFlat(true)
 	}
 
-	c.AddWidget(0, 4, c.btnAddItem)
-	c.AddWidget(0, 5, c.btnEditItem)
-	c.AddWidget(0, 6, c.btnRemoveItem)
+	left := ui.NewPanel()
+	left.SetPanelPadding(0)
+	left.AddWidget(0, 0, c.btnAddItem)
+	left.AddWidget(0, 1, c.btnEditItem)
+	left.AddWidget(0, 2, c.btnRemoveItem)
+	left.AddWidget(0, 3, ui.NewHSpacer())
 
-	c.AddWidget(0, 10, ui.NewHSpacer())
-
-	c.AddWidget(0, 11, c.btnDetails)
-	c.AddWidget(0, 12, c.btnShareOpen)
-	c.AddWidget(0, 13, c.btnStart)
-	c.AddWidget(0, 14, c.btnStop)
-
+	right := ui.NewPanel()
+	right.SetPanelPadding(0)
+	right.AddWidget(0, 0, ui.NewHSpacer())
+	right.AddWidget(0, 1, c.btnDetails)
+	right.AddWidget(0, 2, c.btnStart)
+	right.AddWidget(0, 3, c.btnStop)
 	groupSpace := ui.NewSpace()
 	groupSpace.SetSize(16, 0)
-	c.AddWidget(0, 15, groupSpace)
+	right.AddWidget(0, 4, groupSpace)
+	right.AddWidget(0, 5, c.btnOpen)
+	right.AddWidget(0, 6, c.btnTray)
 
-	c.AddWidget(0, 16, c.btnOpen)
-	c.AddWidget(0, 17, c.btnTray)
+	// The sides are as wide as each other, so the button between them is in the middle
+	sideWidth := max(left.MinWidth(), right.MinWidth())
+	left.SetMinWidth(sideWidth)
+	right.SetMinWidth(sideWidth)
+	left.ClearLayoutCache()
+	right.ClearLayoutCache()
+
+	c.AddWidget(0, 0, left)
+	// The button keeps its own height, in the middle of the toolbar's
+	// (spacers would let the toolbar grow)
+	middle := ui.NewPanel()
+	middle.SetPanelPadding(0)
+	middle.SetCellPadding(0)
+	top := ui.NewSpace()
+	c.btnShareOpen.SetMaxHeight(c.btnShareOpen.MinHeight())
+	top.SetSize(0, (ui.ToolButtonDefaultSize-c.btnShareOpen.MinHeight())/2)
+	middle.AddWidget(0, 0, top)
+	middle.AddWidget(1, 0, c.btnShareOpen)
+	c.AddWidget(0, 1, middle)
+	c.AddWidget(0, 2, right)
 
 	c.AddTimer(200, c.timerUpdate)
 
@@ -109,7 +136,11 @@ func (c *TopWidget) timerUpdate() {
 	// Only one host is edited at a time; pages are opened for the shared hosts
 	if lastCreatedLeftWidget != nil {
 		c.btnEditItem.SetEnabled(len(lastCreatedLeftWidget.GetSelectedHostConfigs()) == 1)
-		c.btnShareOpen.SetEnabled(len(sharedHosts(lastCreatedLeftWidget.GetSelectedHostConfigs())) > 0)
+		shareOpen := len(sharedHosts(lastCreatedLeftWidget.GetSelectedHostConfigs())) > 0
+		// Set on a change only: a property of a Button lays the window out again
+		if c.btnShareOpen.Enabled() != shareOpen {
+			c.btnShareOpen.SetEnabled(shareOpen)
+		}
 	}
 
 	// An empty config: point to the first thing to do
