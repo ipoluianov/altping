@@ -34,9 +34,9 @@ func NewNumberDialog(title, label string, value, minValue, maxValue, step int, o
 	content.AddWidget(0, 1, c.num)
 
 	c.btnOK = ui.NewButton(ui.UIText().OK)
-	c.btnOK.SetOnClick(c.Accept)
+	c.btnOK.OnClick.Connect(func(ui.Widgeter) { c.Accept() })
 	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
-	c.btnCancel.SetOnClick(func() { c.Form().Close() })
+	c.btnCancel.OnClick.Connect(func(ui.Widgeter) { c.Form().Close() })
 	buttons.AddWidget(0, 0, ui.NewHSpacer())
 	buttons.AddWidget(0, 1, c.btnOK)
 	buttons.AddWidget(0, 2, c.btnCancel)

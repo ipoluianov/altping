@@ -30,25 +30,14 @@ var (
 	colorSecondaryText = themeColors{ui.ColorFromHex("#555555"), ui.ColorFromHex("#8c8c8c")}
 )
 
-// linkLabels are recolored when the theme changes, see newLinkLabel
-var linkLabels []*ui.Label
-
 // ApplyTheme switches the application to the theme of the settings and
 // repaints the open windows. The colors of the table follow on its next
-// update, the other ones are set here.
+// update; the colors and icons the application sets itself follow
+// ui.OnThemeChanged.
 func ApplyTheme(theme string) {
 	if theme == themeLight {
 		ui.ApplyLightTheme()
 	} else {
 		ui.ApplyDarkTheme()
-	}
-	for _, lbl := range linkLabels {
-		lbl.SetForegroundColor(colorLink.get())
-	}
-	for _, setIcon := range themedIcons {
-		setIcon()
-	}
-	if lastCreatedLeftWidget != nil {
-		lastCreatedLeftWidget.applyTheme()
 	}
 }

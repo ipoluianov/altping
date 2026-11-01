@@ -47,9 +47,9 @@ func NewAboutDialog() *AboutDialog {
 	c.panelContent.AddWidget(5, 0, lblWebsite)
 
 	c.btnWebsite = ui.NewButton(T().VisitWebsite)
-	c.btnWebsite.SetOnClick(c.VisitWebsite)
+	c.btnWebsite.OnClick.Connect(func(ui.Widgeter) { c.VisitWebsite() })
 	c.btnClose = ui.NewButton(T().Close)
-	c.btnClose.SetOnClick(c.Close)
+	c.btnClose.OnClick.Connect(func(ui.Widgeter) { c.Close() })
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
 	c.panelButtons.AddWidget(0, 1, c.btnWebsite)

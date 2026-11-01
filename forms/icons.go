@@ -20,9 +20,6 @@ var iconsFS embed.FS
 // theme they are shown in this dark one
 var iconColorLight = ui.ColorFromHex("#455a64")
 
-// themedIcons set the icons again when the theme changes, see setIcon
-var themedIcons []func()
-
 // loadIcon returns the icon in the colors of the current theme
 func loadIcon(name string) image.Image {
 	data, err := iconsFS.ReadFile("icons/" + name + ".png")
@@ -41,9 +38,8 @@ func loadIcon(name string) image.Image {
 
 // setIcon sets the icon with set now and again on every theme change
 func setIcon(name string, set func(img image.Image)) {
-	apply := func() { set(loadIcon(name)) }
-	apply()
-	themedIcons = append(themedIcons, apply)
+	set(loadIcon(name))
+	ui.OnThemeChanged.Connect(func(bool) { set(loadIcon(name)) })
 }
 
 // tintIcon paints a one-color icon in col, keeping its transparency

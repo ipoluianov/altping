@@ -39,8 +39,8 @@ func main() {
 		return true
 	}
 	system.Get().Start()
-	form.SetOnGlobalKeyDown(forms.OnGlobalKeyDown)
-	form.SetOnLanguageChanged(mainForm.ApplyLanguage)
+	form.OnGlobalKeyDown.Connect(func(e *ui.KeyEvent) { e.Handled = forms.OnGlobalKeyDown(e.Key, e.Mods) })
+	form.OnLanguageChanged.Connect(func(string) { mainForm.ApplyLanguage() })
 	form.Show()
 	inst.Serve(func() { form.Invoke(mainForm.BringToFront) })
 	// The form is handled by its own goroutine once shown

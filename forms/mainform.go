@@ -48,14 +48,18 @@ func NewMainForm() *MainForm {
 	c.AddWidget(0, 0, c.topWidget)
 	c.details = NewDetailsWidget()
 	c.details.SetVisible(false)
+	// The toolbar and the chart follow the hosts selected in the table
+	c.leftWidget.OnSelectedHostsChanged.Connect(c.topWidget.showSelectedHosts)
+	c.leftWidget.OnSelectedHostsChanged.Connect(func([]*config.ConfigHost) { c.details.checkSelection() })
+	c.topWidget.showSelectedHosts(c.leftWidget.GetSelectedHostConfigs())
 	// The details keep their width when the window is resized
 	c.leftWidget.SetMinWidth(tableMinWidth)
 	c.splitter = ui.NewHSplitter()
 	c.splitter.SetWidgets(c.leftWidget, c.details)
 	c.detailsWidth = detailsInitialWidth
 	c.splitter.SetSecondSize(c.detailsWidth)
-	c.splitter.SetOnSplitChanged(func() {
-		c.detailsWidth = c.splitter.SecondSize()
+	c.splitter.OnActivated.Connect(func(size int) {
+		c.detailsWidth = size
 	})
 	c.AddWidget(1, 0, c.splitter)
 	c.AddWidget(2, 0, c.bottomWidget)

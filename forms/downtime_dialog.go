@@ -96,7 +96,7 @@ func NewDowntimeDialog(hosts []*config.ConfigHost) *DowntimeDialog {
 	buttons := ui.NewPanel()
 	c.AddWidget(3, 0, buttons)
 	c.btnClose = ui.NewButton(T().Close)
-	c.btnClose.SetOnClick(func() { c.Form().Close() })
+	c.btnClose.OnClick.Connect(func(ui.Widgeter) { c.Form().Close() })
 	buttons.AddWidget(0, 0, ui.NewHSpacer())
 	buttons.AddWidget(0, 1, c.btnClose)
 

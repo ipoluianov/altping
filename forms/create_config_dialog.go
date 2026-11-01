@@ -35,9 +35,9 @@ func NewCreateConfigDialog(title string, name string, onAccept func(name string)
 	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
-	c.btnOK.SetOnClick(c.Accept)
+	c.btnOK.OnClick.Connect(func(ui.Widgeter) { c.Accept() })
 	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
-	c.btnCancel.SetOnClick(c.Cancel)
+	c.btnCancel.OnClick.Connect(func(ui.Widgeter) { c.Cancel() })
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
 	c.panelButtons.AddWidget(0, 1, c.btnOK)

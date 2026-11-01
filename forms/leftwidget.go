@@ -95,6 +95,10 @@ type LeftWidget struct {
 	// when a header is clicked, not on every update, so they do not jump around.
 	sortColumn int
 	sortDesc   bool
+
+	// OnSelectedHostsChanged: other hosts were selected, or the hosts were
+	// reloaded (added, edited, removed, sorted); the selected hosts
+	OnSelectedHostsChanged ui.Signal[[]*config.ConfigHost]
 }
 
 func NewLeftWidget() *LeftWidget {
@@ -116,10 +120,12 @@ func NewLeftWidget() *LeftWidget {
 	c.lvItems.SetStretchLastColumn(true)
 	c.lvItems.SetCellPadding(cellPaddingX)
 	c.applyTheme()
+	ui.OnThemeChanged.Connect(func(bool) { c.applyTheme() })
 	c.ApplyColumns()
-	c.lvItems.SetOnColumnClick(c.onColumnClick)
+	c.lvItems.OnColumnClick.Connect(c.onColumnClick)
 
 	c.lvItems.SetMultiselect(true)
+	c.lvItems.OnSelectionChanged.Connect(func(ui.TableCell) { c.selectedHostsChanged() })
 
 	// Right click selects the row under the mouse (unless it is already selected) and shows the menu
 	menu := ui.NewContextMenu(c.lvItems)
@@ -159,7 +165,7 @@ func NewLeftWidget() *LeftWidget {
 	change := menu.AddItemWithSubmenu("", c.newChangeMenu())
 	setIcon("change-16", func(img image.Image) { change.SetImage(img) })
 	change.SetTextFunc(func() string { return T().MenuChange })
-	menu.SetOnShow(func() {
+	menu.OnShow.Connect(func(*ui.ContextMenu) {
 		// Only one host is edited at a time
 		edit.SetVisible(len(c.GetSelectedHostConfigs()) == 1)
 		shared := c.sharedSelectedHost() != nil
@@ -169,10 +175,8 @@ func NewLeftWidget() *LeftWidget {
 	c.lvItems.SetContextMenu(menu)
 
 	// Double click edits the host, like Enter and E
-	c.lvItems.SetOnCellMouseDblClick(func() {
-		if ev, ok := ui.CurrentEvent().Parameter.(*ui.EventTableCellMouseDblClick); ok {
-			ev.Processed = true
-		}
+	c.lvItems.OnCellDoubleClick.Connect(func(e *ui.TableCellEvent) {
+		e.Handled = true
 		lastCreatedTopWidget.onBtnEditItem()
 	})
 
@@ -266,6 +270,11 @@ func (c *LeftWidget) loadHosts() {
 			c.Form().UpdateLayout()
 		}
 	}
+	c.selectedHostsChanged()
+}
+
+func (c *LeftWidget) selectedHostsChanged() {
+	c.OnSelectedHostsChanged.Emit(c.GetSelectedHostConfigs())
 }
 
 // newEmptyHint tells what to do with an empty list and links to the docs

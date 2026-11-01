@@ -78,16 +78,14 @@ func newLinkLabel(text func() string, onClick func()) *ui.Label {
 	lbl := ui.NewLabel("")
 	lbl.SetTextFunc(text)
 	lbl.SetForegroundColor(colorLink.get())
-	lbl.SetOnMouseEnter(func() { lbl.SetUnderline(true) })
-	lbl.SetOnMouseLeave(func() { lbl.SetUnderline(false) })
-	linkLabels = append(linkLabels, lbl)
+	lbl.OnHoverChanged.Connect(lbl.SetUnderline)
+	ui.OnThemeChanged.Connect(func(bool) { lbl.SetForegroundColor(colorLink.get()) })
 	lbl.SetMouseCursor(ui.MouseCursorPointer)
-	lbl.SetOnMouseDown(func(button ui.MouseButton, x int, y int, mods ui.KeyModifiers) bool {
-		if button != ui.MouseButtonLeft {
-			return false
+	lbl.OnMouseDown.Connect(func(e *ui.MouseEvent) {
+		if e.Button == ui.MouseButtonLeft {
+			onClick()
+			e.Handled = true
 		}
-		onClick()
-		return true
 	})
 	return lbl
 }

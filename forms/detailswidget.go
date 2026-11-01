@@ -51,7 +51,7 @@ func NewDetailsWidget() *DetailsWidget {
 		btn := ui.NewButton("")
 		btn.SetTextFunc(func() string { return T().Periods[i] })
 		btn.SetMinWidth(48)
-		btn.SetOnClick(func() { c.SetPeriod(period) })
+		btn.OnClick.Connect(func(ui.Widgeter) { c.SetPeriod(period) })
 		header.AddWidget(0, i+1, btn)
 		c.btnPeriods = append(c.btnPeriods, btn)
 	}
@@ -59,8 +59,6 @@ func NewDetailsWidget() *DetailsWidget {
 	c.chart = ui.NewTimeChart()
 	c.AddWidget(1, 0, c.chart)
 
-	// The selection is checked often so the chart follows the table without a visible delay
-	c.AddTimer(50, c.checkSelection)
 	c.AddTimer(500, c.timerUpdate)
 
 	lastCreatedDetailsWidget = &c

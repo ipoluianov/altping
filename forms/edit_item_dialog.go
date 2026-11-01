@@ -64,9 +64,9 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
-	c.btnOK.SetOnClick(c.Accept)
+	c.btnOK.OnClick.Connect(func(ui.Widgeter) { c.Accept() })
 	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
-	c.btnCancel.SetOnClick(c.Reject)
+	c.btnCancel.OnClick.Connect(func(ui.Widgeter) { c.Reject() })
 
 	c.panelButtons.AddWidget(0, 0, ui.NewHSpacer())
 	c.panelButtons.AddWidget(0, 1, c.btnOK)
@@ -101,7 +101,7 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 		c.chkPort.SetChecked(true)
 	}
 	c.showPortRow()
-	c.chkPort.SetOnStateChanged(c.showPortRow)
+	c.chkPort.OnCheckedChanged.Connect(func(bool) { c.showPortRow() })
 	c.panelContent.AddWidget(2, 0, ui.NewLabel(T().TCPPort))
 	c.panelContent.AddWidget(2, 1, c.chkPort)
 	c.panelContent.AddWidget(3, 0, c.lblPort)
@@ -134,16 +134,16 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.chkShare = ui.NewCheckbox(T().ShareOn)
 	c.chkShare.SetChecked(c.hostConfig.Share)
 	c.chkShare.SetTooltip(T().ShareTooltip)
-	c.chkShare.SetOnStateChanged(c.showShareRow)
+	c.chkShare.OnCheckedChanged.Connect(func(bool) { c.showShareRow() })
 	c.panelContent.AddWidget(8, 0, ui.NewLabel(T().Share))
 	c.panelContent.AddWidget(8, 1, c.chkShare)
 
 	shareRow := ui.NewPanel()
 	shareRow.SetPanelPadding(0)
 	c.btnShareOpen = ui.NewButton(T().ShareOpen)
-	c.btnShareOpen.SetOnClick(func() { openShareURL(&c, c.hostConfig) })
+	c.btnShareOpen.OnClick.Connect(func(ui.Widgeter) { openShareURL(&c, c.hostConfig) })
 	c.btnShareCopy = ui.NewButton(T().ShareCopy)
-	c.btnShareCopy.SetOnClick(func() { copyShareURL(&c, c.hostConfig) })
+	c.btnShareCopy.OnClick.Connect(func(ui.Widgeter) { copyShareURL(&c, c.hostConfig) })
 	c.lblShareURL = ui.NewLabel(shortShareURL(c.hostConfig))
 	c.lblShareURL.SetTooltip(c.hostConfig.ShareURL())
 	shareRow.AddWidget(0, 0, c.btnShareOpen)

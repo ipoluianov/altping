@@ -15,7 +15,7 @@ func (c *MainForm) HideToTray() {
 			return
 		}
 		trayIcon = icon
-		trayIcon.SetOnClick(c.ShowFromTray)
+		trayIcon.OnClick.Connect(func(*ui.TrayIcon) { c.ShowFromTray() })
 		c.updateTrayMenu()
 		c.UpdateTitle()
 	}

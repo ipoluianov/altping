@@ -40,20 +40,20 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 	c.AddWidget(1, 0, c.panelButtons)
 
 	c.btnNew = ui.NewButton(T().NewConfig)
-	c.btnNew.SetOnClick(c.CreateConfig)
+	c.btnNew.OnClick.Connect(func(ui.Widgeter) { c.CreateConfig() })
 	c.btnSaveAs = ui.NewButton(T().SaveConfigAs)
-	c.btnSaveAs.SetOnClick(c.SaveOpenedConfigAs)
+	c.btnSaveAs.OnClick.Connect(func(ui.Widgeter) { c.SaveOpenedConfigAs() })
 	c.btnRemove = ui.NewButton(T().RemoveConfig)
-	c.btnRemove.SetOnClick(c.RemoveSelectedConfig)
+	c.btnRemove.OnClick.Connect(func(ui.Widgeter) { c.RemoveSelectedConfig() })
 
 	c.btnOK = ui.NewButton(ui.UIText().OK)
 	c.onAccept = onAccept
 	c.onCancel = onCancel
-	c.btnOK.SetOnClick(func() {
+	c.btnOK.OnClick.Connect(func(ui.Widgeter) {
 		c.Accept()
 	})
 	c.btnCancel = ui.NewButton(ui.UIText().Cancel)
-	c.btnCancel.SetOnClick(func() {
+	c.btnCancel.OnClick.Connect(func(ui.Widgeter) {
 		c.Cancel()
 	})
 
@@ -72,23 +72,25 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 	c.lvConfigs.SetColumnCount(3)
 	c.lvConfigs.SetColumnWidth(0, 200)
 	c.lvConfigs.SetColumnWidth(1, 100)
-	c.lvConfigs.SetColumnWidth(2, 500)
+	c.lvConfigs.SetColumnWidth(2, 300)
+	// The hosts take the rest of the width: the table fits the dialog without scrolling sideways
+	c.lvConfigs.SetStretchLastColumn(true)
 	c.lvConfigs.SetColumnName(0, T().Columns.Name)
 	c.lvConfigs.SetColumnName(1, T().HostsCount)
 	c.lvConfigs.SetColumnName(2, T().Hosts)
 
-	c.lvConfigs.SetOnCellMouseDblClick(c.onConfigDoubleClick)
+	c.lvConfigs.OnCellDoubleClick.Connect(c.onConfigDoubleClick)
 
-	c.lvConfigs.SetOnKeyDown(func(key ui.Key, mods ui.KeyModifiers) bool {
-		if key == ui.KeyDelete {
+	c.lvConfigs.OnKeyDown.Connect(func(e *ui.KeyEvent) {
+		if e.Key == ui.KeyDelete {
 			c.RemoveSelectedConfig()
-			return true
+			e.Handled = true
 		}
-		return false
 	})
 
 	c.OnDialogShow = func() {
 		c.Form().SetTitle(T().ConfigsTitle)
+		c.Form().SetSize(800, 600)
 		c.lvConfigs.Focus()
 		c.Form().SetAcceptButton(c.btnOK)
 		c.Form().SetCancelButton(c.btnCancel)
@@ -197,7 +199,7 @@ func (c *OpenConfigDialog) GetSelectedConfig() *config.Config {
 	return cfg
 }
 
-func (c *OpenConfigDialog) onConfigDoubleClick() {
+func (c *OpenConfigDialog) onConfigDoubleClick(*ui.TableCellEvent) {
 	c.Accept()
 }
 

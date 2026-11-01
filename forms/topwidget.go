@@ -61,7 +61,7 @@ func NewTopWidget() *TopWidget {
 	// The u00.io page stands out among the icons: a button with its name, in the middle
 	c.btnShareOpen = ui.NewButton("")
 	c.btnShareOpen.SetTextFunc(func() string { return T().MenuShareOpen })
-	c.btnShareOpen.SetOnClick(c.onBtnShareOpen)
+	c.btnShareOpen.OnClick.Connect(func(ui.Widgeter) { c.onBtnShareOpen() })
 	c.btnShareOpen.SetEnabled(false) // until a shared host is selected
 	// Like the icons, it leaves the keys to the table: U opens the pages
 	c.btnShareOpen.SetCanBeFocused(false)
@@ -132,15 +132,17 @@ func (c *TopWidget) timerUpdate() {
 		c.btnStart.SetEnabled(true)
 		c.btnStop.SetEnabled(false)
 	}
+}
 
+// showSelectedHosts enables the buttons for the hosts selected in the table;
+// it is called when the selection or the hosts change
+func (c *TopWidget) showSelectedHosts(hosts []*config.ConfigHost) {
 	// Only one host is edited at a time; pages are opened for the shared hosts
-	if lastCreatedLeftWidget != nil {
-		c.btnEditItem.SetEnabled(len(lastCreatedLeftWidget.GetSelectedHostConfigs()) == 1)
-		shareOpen := len(sharedHosts(lastCreatedLeftWidget.GetSelectedHostConfigs())) > 0
-		// Set on a change only: a property of a Button lays the window out again
-		if c.btnShareOpen.Enabled() != shareOpen {
-			c.btnShareOpen.SetEnabled(shareOpen)
-		}
+	c.btnEditItem.SetEnabled(len(hosts) == 1)
+	shareOpen := len(sharedHosts(hosts)) > 0
+	// Set on a change only: a property of a Button lays the window out again
+	if c.btnShareOpen.Enabled() != shareOpen {
+		c.btnShareOpen.SetEnabled(shareOpen)
 	}
 
 	// An empty config: point to the first thing to do
