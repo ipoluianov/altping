@@ -1,6 +1,9 @@
 package forms
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Every language has all the texts: a new field in Strings without a
 // translation fails here instead of silently showing English
@@ -31,6 +34,28 @@ func TestWithoutHotkey(t *testing.T) {
 			title := withoutHotkey(hint)
 			if title == hint || title == "" {
 				t.Errorf("%s: %q has no key to cut", lang, hint)
+			}
+		}
+	}
+}
+
+// The keys in the hints are the same in every language: they name the keys to press
+func TestHotkeysKept(t *testing.T) {
+	key := func(s string) string {
+		if i := strings.LastIndex(s, " ("); i >= 0 {
+			return s[i:]
+		}
+		return ""
+	}
+	hints := func(s *Strings) []string {
+		return []string{s.ToolConfigs, s.ToolAddHost, s.ToolEditHost, s.ToolRemoveHosts, s.ToolDetails,
+			s.ToolTray, s.ToolShareOpen, s.MenuEdit, s.MenuRemove}
+	}
+	want := hints(&en)
+	for _, lang := range catalog.Languages() {
+		for i, hint := range hints(catalog.Get(lang)) {
+			if key(hint) != key(want[i]) {
+				t.Errorf("%s: %q, want the key %q", lang, hint, key(want[i]))
 			}
 		}
 	}
