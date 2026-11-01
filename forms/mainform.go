@@ -189,8 +189,8 @@ func (c *MainForm) UpdateTitle() {
 func (c *MainForm) ApplyLanguage() {
 	c.UpdateTitle()
 	c.updateTrayMenu()
-	c.leftWidget.updateColumnNames()
-	c.leftWidget.timerUpdate()
+	// The names change the widths of the columns
+	c.leftWidget.ApplyColumns()
 	c.details.applyLanguage()
 	c.bottomWidget.timerUpdate()
 }

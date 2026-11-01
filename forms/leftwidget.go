@@ -213,6 +213,10 @@ func (c *LeftWidget) FocusTable() {
 func (c *LeftWidget) FullRestart() {
 	system.Get().Stop()
 	c.loadHosts()
+	// Another config starts at its first host, as at the start of the app
+	if c.lvItems.RowCount() > 0 {
+		c.lvItems.SetCurrentCell2(0, 0)
+	}
 	system.Get().Start()
 }
 
@@ -407,11 +411,23 @@ func (c *LeftWidget) ApplyColumns() {
 	}
 	c.lvItems.SetColumnCount(len(c.columns))
 	for i, field := range c.columns {
-		c.lvItems.SetColumnWidth(i, hostColumns[field].width)
+		c.lvItems.SetColumnWidth(i, c.columnWidth(field))
 		c.lvItems.SetColumnHAlign(i, hostColumns[field].align)
 	}
 	c.updateColumnNames()
 	c.timerUpdate()
+}
+
+// columnWidth is the width of the column, wider when its name with the sort
+// arrow does not fit (e.g. "Время мс" in Russian)
+func (c *LeftWidget) columnWidth(field int) int {
+	const padding = 12
+	width := hostColumns[field].width
+	name := hostColumns[field].name(&T().Columns) + " ▲"
+	if w, _, err := ui.MeasureText(c.lvItems.FontFamily(), c.lvItems.FontSize(), name); err == nil {
+		width = max(width, w+padding)
+	}
+	return width
 }
 
 // onColumnClick sorts by the column; a second click reverses the order

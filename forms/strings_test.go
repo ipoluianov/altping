@@ -22,3 +22,16 @@ func TestLanguagesOffered(t *testing.T) {
 		}
 	}
 }
+
+// Every language has the key at the end of the hints the dialog titles are made of
+func TestWithoutHotkey(t *testing.T) {
+	for _, lang := range append(catalog.Languages(), "en") {
+		s := catalog.Get(lang)
+		for _, hint := range []string{s.ToolAddHost, s.ToolEditHost} {
+			title := withoutHotkey(hint)
+			if title == hint || title == "" {
+				t.Errorf("%s: %q has no key to cut", lang, hint)
+			}
+		}
+	}
+}

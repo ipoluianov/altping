@@ -2,6 +2,7 @@ package forms
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ipoluianov/nui/ui"
 	"github.com/ipoluianov/nui/ui/i18n"
@@ -2101,4 +2102,13 @@ func SetLanguage(lang string) {
 		lang = ui.SystemLanguage()
 	}
 	ui.SetLanguage(lang)
+}
+
+// withoutHotkey cuts the key from a toolbar hint: "Add host (A)" is the
+// title "Add host" of the dialog the button opens
+func withoutHotkey(s string) string {
+	if i := strings.LastIndex(s, " ("); i > 0 && strings.HasSuffix(s, ")") {
+		return s[:i]
+	}
+	return s
 }

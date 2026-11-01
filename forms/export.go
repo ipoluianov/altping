@@ -26,10 +26,13 @@ func exportHistory(hosts []*config.ConfigHost) {
 	name += "-" + time.Now().Format("20060102-1504") + ".csv"
 
 	form := lastCreatedMainWidget.Form()
+	// Not the current folder of the process: started from a menu it is anywhere
+	home, _ := os.UserHomeDir()
 	opts := ui.SaveFileDialogOptions{
-		Title:           T().ExportTitle,
-		DefaultFileName: name,
-		Filters:         []ui.FileDialogFilter{{DisplayName: T().CSVFiles, Patterns: []string{"*.csv"}}},
+		Title:            T().ExportTitle,
+		DefaultDirectory: home,
+		DefaultFileName:  name,
+		Filters:          []ui.FileDialogFilter{{DisplayName: T().CSVFiles, Patterns: []string{"*.csv"}}},
 	}
 	// The system dialog is a separate window: it would open below a window kept on top
 	onTop := config.GetSettings().AlwaysOnTop
@@ -47,7 +50,6 @@ func exportHistory(hosts []*config.ConfigHost) {
 			return
 		}
 		if noDialog {
-			home, _ := os.UserHomeDir()
 			path = filepath.Join(home, name)
 		}
 		if path == "" {

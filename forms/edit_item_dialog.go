@@ -154,6 +154,11 @@ func NewEditItemDialog(hostConfig *config.ConfigHost, onAccept func(hostConfig *
 	c.showShareRow()
 
 	c.OnDialogShow = func() {
+		title := T().ToolEditHost
+		if c.hostConfig.ID == "" {
+			title = T().ToolAddHost
+		}
+		c.Form().SetTitle(withoutHotkey(title))
 		c.Form().SetSize(520, 470)
 		c.Form().MoveToCenterOfParent()
 		c.Form().SetAcceptButton(c.btnOK)

@@ -66,6 +66,8 @@ func NewOpenConfigDialog(openedConfigId string, onAccept func(configId string), 
 
 	c.lvConfigs = ui.NewTable()
 	c.lvConfigs.SetSelectingRows(true)
+	// The light selection of the hosts table: the gray list of the hosts stays readable on it
+	c.lvConfigs.SetProp("background_selected_cell", ui.ColorToHex(ui.CurrentPalette().Selection))
 	c.panelContent.AddWidget(0, 0, ui.NewLabel(T().Configs))
 	c.panelContent.AddWidget(1, 0, c.lvConfigs)
 
@@ -171,6 +173,9 @@ func (c *OpenConfigDialog) LoadTable(selectedConfigIndex int) {
 		}
 		c.lvConfigs.SetCellText2(i, 2, strings.Join(hostnames, ", "))
 
+		// The selection is light: the text keeps its own colors on it
+		c.lvConfigs.SetCellColor(i, 0, textColor())
+		c.lvConfigs.SetCellColor(i, 1, textColor())
 		c.lvConfigs.SetCellColor(i, 2, colorSecondaryText.get())
 	}
 
