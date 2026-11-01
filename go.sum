@@ -6,8 +6,8 @@ github.com/go-text/typesetting-utils v0.0.0-20260419141703-4ffe8874dabc h1:8FGo2
 github.com/go-text/typesetting-utils v0.0.0-20260419141703-4ffe8874dabc/go.mod h1:3/62I4La/HBRX9TcTpBj4eipLiwzf+vhI+7whTc9V7o=
 github.com/godbus/dbus/v5 v5.2.2 h1:TUR3TgtSVDmjiXOgAAyaZbYmIeP3DPkld3jgKGV8mXQ=
 github.com/godbus/dbus/v5 v5.2.2/go.mod h1:3AAv2+hPq5rdnr5txxxRwiGjPXamgoIHgz9FPBfOp3c=
-github.com/ipoluianov/nui v0.0.28 h1:SoFkBVZoRcKOPwYQuR2D2Zv3B6snCDbmbiaf9DZP718=
-github.com/ipoluianov/nui v0.0.28/go.mod h1:UmA6taVneHHcaKE4d+tr2FqlocU/eV3geexjT3uU5PA=
+github.com/ipoluianov/nui v0.0.29 h1:z0o+8Kp7QB8mgZyjK6DEoYjdeoqtdlaXv8bXZbA/N4Q=
+github.com/ipoluianov/nui v0.0.29/go.mod h1:UmA6taVneHHcaKE4d+tr2FqlocU/eV3geexjT3uU5PA=
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6Oo2LfFZAehjjQMERAvZLEDnQ=
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 golang.org/x/image v0.34.0 h1:33gCkyw9hmwbZJeZkct8XyR11yH889EQt/QH4VmXMn8=
