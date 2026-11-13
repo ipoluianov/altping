@@ -28,8 +28,9 @@ Website and documentation: https://altbins.pro/altping/
   with a live chart on [u00.io](https://u00.io).
 - **Host lists.** Keep several lists, for example "Office" and "Servers",
   and change settings for many hosts at once.
-- **Interface.** System tray, always on top, keyboard shortcuts, light
-  and dark themes, 12 languages.
+- **Interface.** 18 styles, from the classic light and dark themes to
+  tiles, heartbeat lanes and high contrast, picked from previews in the
+  toolbar. System tray, always on top, keyboard shortcuts, 31 languages.
 - **One copy at a time.** Starting AltPing again brings the running window
   to the front, even from the tray.
 

@@ -23,6 +23,8 @@ type TopWidget struct {
 	btnStop    *ui.ToolButton
 
 	btnTray *ui.ToolButton
+	// Opens the picker of the styles (stylepicker.go)
+	btnStyle *ui.ToolButton
 
 	btnShareOpen *ui.Button
 }
@@ -67,13 +69,17 @@ func NewTopWidget() *TopWidget {
 	c.btnShareOpen.SetCanBeFocused(false)
 	c.btnShareOpen.SetTooltipFunc(func() string { return T().ToolShareOpen })
 
+	c.btnStyle = ui.NewToolButton(nil, "", c.onBtnStyle)
+	setIcon("style", c.btnStyle.SetImage)
+	c.btnStyle.SetTooltipFunc(func() string { return T().ToolStyle })
+
 	c.btnTray = ui.NewToolButton(nil, "", c.onBtnTray)
 	setIcon("tray", c.btnTray.SetImage)
 	c.btnTray.SetTooltipFunc(func() string { return T().ToolTray })
 
 	// Flat icons: the toolbar stays light, a button shows its shape under the mouse
 	for _, btn := range []*ui.ToolButton{c.btnAddItem, c.btnEditItem, c.btnRemoveItem,
-		c.btnDetails, c.btnStart, c.btnStop, c.btnOpen, c.btnTray} {
+		c.btnDetails, c.btnStart, c.btnStop, c.btnOpen, c.btnTray, c.btnStyle} {
 		btn.SetFlat(true)
 	}
 
@@ -87,14 +93,18 @@ func NewTopWidget() *TopWidget {
 	right := ui.NewPanel()
 	right.SetPanelPadding(0)
 	right.AddWidget(0, 0, ui.NewHSpacer())
-	right.AddWidget(0, 1, c.btnDetails)
-	right.AddWidget(0, 2, c.btnStart)
-	right.AddWidget(0, 3, c.btnStop)
+	right.AddWidget(0, 1, c.btnStyle)
+	styleSpace := ui.NewSpace()
+	styleSpace.SetSize(16, 0)
+	right.AddWidget(0, 2, styleSpace)
+	right.AddWidget(0, 3, c.btnDetails)
+	right.AddWidget(0, 4, c.btnStart)
+	right.AddWidget(0, 5, c.btnStop)
 	groupSpace := ui.NewSpace()
 	groupSpace.SetSize(16, 0)
-	right.AddWidget(0, 4, groupSpace)
-	right.AddWidget(0, 5, c.btnOpen)
-	right.AddWidget(0, 6, c.btnTray)
+	right.AddWidget(0, 6, groupSpace)
+	right.AddWidget(0, 7, c.btnOpen)
+	right.AddWidget(0, 8, c.btnTray)
 
 	// The sides are as wide as each other, so the button between them is in the middle
 	sideWidth := max(left.MinWidth(), right.MinWidth())
@@ -322,6 +332,11 @@ func (c *TopWidget) onBtnShareOpen() {
 		}
 		openShareURL(c, *host)
 	}
+}
+
+// onBtnStyle opens the picker of the styles under the button
+func (c *TopWidget) onBtnStyle() {
+	showStylePicker(c.btnStyle)
 }
 
 func (c *TopWidget) onBtnTray() {

@@ -1,6 +1,7 @@
 package forms
 
 import (
+	"image/color"
 	"strings"
 	"time"
 
@@ -23,7 +24,9 @@ type DetailsWidget struct {
 
 	lblTitle   *ui.Label
 	btnPeriods []*ui.Button
-	chart      *ui.TimeChart
+	// The numbers of the host on the chart, above it
+	stats *detailsStats
+	chart *ui.TimeChart
 
 	// The time range shown, up to now
 	period time.Duration
@@ -56,8 +59,12 @@ func NewDetailsWidget() *DetailsWidget {
 		c.btnPeriods = append(c.btnPeriods, btn)
 	}
 
+	c.stats = newDetailsStats()
+	c.AddWidget(1, 0, c.stats)
 	c.chart = ui.NewTimeChart()
-	c.AddWidget(1, 0, c.chart)
+	c.AddWidget(2, 0, c.chart)
+	c.applyTheme()
+	ui.OnThemeChanged.Connect(func(bool) { c.applyTheme() })
 
 	c.AddTimer(500, c.timerUpdate)
 
@@ -120,7 +127,39 @@ func (c *DetailsWidget) timerUpdate() {
 	if !c.IsVisible() {
 		return
 	}
+	c.stats.Update()
 	c.updateTimeRange()
+}
+
+// applyTheme draws the chart in the colors of the style: its lines in the
+// trend colors, over a fill in the styles that have one
+func (c *DetailsWidget) applyTheme() {
+	st := currentStyle
+	th := *ui.CurrentChartTheme()
+	if !st.classic() {
+		th.Palette = append([]color.RGBA{st.Trend, st.Trend2}, th.Palette...)
+		th.BadHatch = alpha(st.Down, 110)
+		th.Background = st.Palette.Window
+		th.PlotBackground = st.Palette.Base
+	}
+	c.chart.SetTheme(&th)
+	for _, area := range c.chart.Areas() {
+		for _, series := range area.Series() {
+			styleSeries(series)
+		}
+	}
+	c.chart.Update()
+}
+
+// styleSeries draws a line of the chart as the style wants it
+func styleSeries(series *ui.TimeChartSeries) {
+	st := currentStyle
+	line, ok := series.Series().(*ui.LineSeries)
+	if !ok {
+		return
+	}
+	line.SetLineWidth(st.ChartLine)
+	line.SetFill(st.ChartFill > 0, st.ChartFill, true)
 }
 
 func (c *DetailsWidget) updateTimeRange() {
@@ -137,7 +176,13 @@ func (c *DetailsWidget) rebuildChart(hosts []*config.ConfigHost) {
 		name := hostDisplayName(h)
 		c.shownHostNames = append(c.shownHostNames, name)
 		area := c.chart.AddArea()
-		area.AddSeries(name+", "+T().Ms, &historySource{hostID: h.ID}).SetPaletteColor(0)
+		series := area.AddSeries(name+", "+T().Ms, &historySource{hostID: h.ID})
+		series.SetPaletteColor(0)
+		styleSeries(series)
+	}
+	c.stats.setHost(nil)
+	if len(hosts) == 1 {
+		c.stats.setHost(hosts[0])
 	}
 	c.updateTitle()
 }
@@ -190,4 +235,97 @@ func (c *historySource) GetData(from, to time.Time, groupDuration time.Duration)
 		}
 	})
 	return agg.Points()
+}
+
+// detailsStats shows the numbers of the host on the chart over the last 5
+// minutes as cards: the last time, the average, the loss and the jitter.
+// It is hidden while the chart shows no host or several.
+type detailsStats struct {
+	ui.Widget
+	host *config.ConfigHost
+}
+
+func newDetailsStats() *detailsStats {
+	d := &detailsStats{}
+	d.InitWidget()
+	d.SetXExpandable(true)
+	d.SetOnPaint(d.paint)
+	d.SetVisible(false)
+	d.applyTheme()
+	ui.OnThemeChanged.Connect(func(bool) { d.applyTheme() })
+	return d
+}
+
+func (d *detailsStats) applyTheme() {
+	h := int(ui.ThemeFontSize()*3.6) + 8
+	d.SetMinHeight(h)
+	d.SetMaxHeight(h)
+}
+
+func (d *detailsStats) setHost(h *config.ConfigHost) {
+	d.host = h
+	if visible := h != nil; visible != d.IsVisible() {
+		d.SetVisible(visible)
+		if f := d.Form(); f != nil {
+			f.UpdateLayout()
+		}
+	}
+	d.Update()
+}
+
+func (d *detailsStats) paint(cnv *ui.Canvas) {
+	if d.host == nil {
+		return
+	}
+	st := currentStyle
+	p := st.Palette
+	cnv.FillRect(0, 0, d.Width(), d.Height(), p.Window)
+	r := hostRowOf(d.host)
+	t := r.texts()
+	cols := T().Columns
+	cards := []struct {
+		label, value string
+		col          color.RGBA
+	}{
+		{cols.Time, t[colTime], p.Text},
+		{cols.Avg, t[colAvg], p.Text},
+		{cols.Loss, t[colLoss], p.Text},
+		{cols.Jitter, t[colJitter], p.Text},
+	}
+	if r.failed {
+		cards[0].value, cards[0].col = strings.ToUpper(stateText(r)), st.Down
+	}
+	if t[colLoss] != "0" && t[colLoss] != "-" {
+		cards[2].col = st.Slow
+		if r.stats.Lost == r.stats.Sent {
+			cards[2].col = st.Down
+		}
+	}
+	if r.isSlow() {
+		cards[1].col = st.Slow
+	}
+	const gap = 8
+	fs := ui.ThemeFontSize()
+	family := ui.ThemeFontFamily()
+	n := len(cards)
+	w := (d.Width() - gap*(n-1)) / n
+	h := d.Height() - 8
+	for i, c := range cards {
+		x := i * (w + gap)
+		fillCard(cnv, st, x, 4, w, h, p.Base, p.Border, 1)
+		cnv.Save()
+		cnv.TranslateAndClip(x+10, 4, w-16, h)
+		cnv.SetFontFamily(family)
+		cnv.SetHAlign(ui.HAlignLeft)
+		cnv.SetVAlign(ui.VAlignTop)
+		cnv.SetFontSize(fs - 4)
+		cnv.SetColor(st.Muted)
+		cnv.DrawText(0, int(fs*0.45), w-16, int(fs*1.3), fitText(family, fs-4, strings.ToUpper(c.label), w-16))
+		cnv.SetFontSize(fs * 1.35)
+		cnv.SetFontBold(true)
+		cnv.SetColor(c.col)
+		cnv.DrawText(0, int(fs*1.45), w-16, int(fs*1.9), fitText(family, fs*1.35, c.value, w-16))
+		cnv.SetFontBold(false)
+		cnv.Restore()
+	}
 }

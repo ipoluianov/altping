@@ -60,22 +60,21 @@ var hostColumns = [colCount]struct {
 	colDetails: {func(s *ColumnStrings) string { return s.Details }, 200, nil, ui.HAlignLeft},
 }
 
-// rowExtraHeight makes the rows a little taller than the theme's, so the table breathes
-const rowExtraHeight = 8
-
-var (
-	colorNotPinged = themeColors{ui.ColorFromHex("#888888"), ui.ColorFromHex("#7a7a7a")}
-	colorOK        = themeColors{ui.ColorFromHex("#1ebd1e"), ui.ColorFromHex("#178a17")}
-	colorSlow      = themeColors{ui.ColorFromHex("#d9b72b"), ui.ColorFromHex("#a88400")}
-	colorFailed    = themeColors{ui.ColorFromHex("#e6660a"), ui.ColorFromHex("#d05500")}
-)
-
 type LeftWidget struct {
 	ui.Widget
 
 	lvItems *ui.Table
 	// Shown instead of the table while there are no hosts
 	emptyHint *ui.Panel
+	// The other views of the hosts (Style.View) and the cards with the
+	// totals (Style.KPIs); the table stays the model of the order and the
+	// selection
+	tiles, lanes *hostView
+	kpis         *kpiStrip
+	// The hosts as the views draw them, in the order of the table rows
+	viewHosts []viewHost
+	// The menu of the hosts, also opened from the views
+	menu *ui.ContextMenu
 
 	// The fields shown, one per table column
 	columns []int
@@ -84,8 +83,8 @@ type LeftWidget struct {
 	// (config.ConfigHost.Notify), in the colors of the theme
 	iconNotify image.Image
 
-	// The trend charts computed lately, by host ID
-	trends map[string]trendCache
+	// The trend charts computed lately
+	trends map[trendKey]trendCache
 	// The u00.io mark in the colors of its states, made from the icon as needed
 	shareIcons map[color.RGBA]image.Image
 	// Whether the names leave room for the u00.io mark: only when a host is shared
@@ -105,15 +104,24 @@ func NewLeftWidget() *LeftWidget {
 	var c LeftWidget
 	c.InitWidget()
 	c.lvItems = ui.NewTable()
-	c.AddWidget(0, 0, c.lvItems)
+	c.kpis = newKPIStrip()
+	c.kpis.SetVisible(false)
+	c.AddWidget(0, 0, c.kpis)
+	c.AddWidget(1, 0, c.lvItems)
 	c.emptyHint = newEmptyHint()
 	c.emptyHint.SetVisible(false)
-	c.AddWidget(1, 0, c.emptyHint)
+	c.AddWidget(2, 0, c.emptyHint)
+	c.tiles = newHostView(&c, viewTiles)
+	c.tiles.SetVisible(false)
+	c.AddWidget(3, 0, c.tiles)
+	c.lanes = newHostView(&c, viewLanes)
+	c.lanes.SetVisible(false)
+	c.AddWidget(4, 0, c.lanes)
 	//c.SetMinWidth(700)
 	//c.SetMaxWidth(700)
 
 	c.sortColumn = -1
-	c.trends = make(map[string]trendCache)
+	c.trends = make(map[trendKey]trendCache)
 	c.shareIcons = make(map[color.RGBA]image.Image)
 	c.lvItems.SetSelectingRows(true)
 	// The last column takes the rest of the width: no empty strip on the right
@@ -129,6 +137,7 @@ func NewLeftWidget() *LeftWidget {
 
 	// Right click selects the row under the mouse (unless it is already selected) and shows the menu
 	menu := ui.NewContextMenu(c.lvItems)
+	c.menu = menu
 	edit := menu.AddItem("", func() { lastCreatedTopWidget.onBtnEditItem() })
 	setIcon("edit-16", func(img image.Image) { edit.SetImage(img) })
 	edit.SetTextFunc(func() string { return T().MenuEdit })
@@ -197,16 +206,62 @@ func NewLeftWidget() *LeftWidget {
 // instead of the accent one: the colors of the host states stay readable on it
 func (c *LeftWidget) applyTheme() {
 	c.lvItems.SetProp("background_selected_cell", ui.ColorToHex(ui.CurrentPalette().Selection))
-	c.lvItems.SetRowHeight(ui.ThemeRowHeight() + rowExtraHeight)
+	c.lvItems.SetRowHeight(ui.ThemeRowHeight() + currentStyle.RowExtra)
 	c.iconNotify = loadIcon("bell-16")
+	c.updateColumnNames()
+	c.updateViews()
 	c.timerUpdate()
 }
 
 // notifyIconSize is the width of the bell before the host names
 const notifyIconSize = 16
 
+// FocusTable gives the keys to the view of the hosts: the table, the tiles or the lanes
 func (c *LeftWidget) FocusTable() {
-	c.lvItems.Focus()
+	switch {
+	case c.tiles.IsVisible():
+		c.tiles.Focus()
+	case c.lanes.IsVisible():
+		c.lanes.Focus()
+	default:
+		c.lvItems.Focus()
+	}
+}
+
+// updateViews shows the view of the hosts of the style, the hint for an
+// empty list, and the cards of the totals
+func (c *LeftWidget) updateViews() {
+	st := currentStyle
+	empty := c.lvItems.RowCount() == 0
+	type part interface {
+		IsVisible() bool
+		SetVisible(bool)
+		IsFocused() bool
+	}
+	changed := false
+	focused := false
+	for _, p := range []struct {
+		w       part
+		visible bool
+	}{
+		{c.lvItems, !empty && st.View == viewTable},
+		{c.tiles, !empty && st.View == viewTiles},
+		{c.lanes, !empty && st.View == viewLanes},
+		{c.emptyHint, empty},
+		{c.kpis, st.KPIs},
+	} {
+		if p.w.IsVisible() != p.visible {
+			focused = focused || p.w.IsFocused()
+			p.w.SetVisible(p.visible)
+			changed = true
+		}
+	}
+	if changed && c.Form() != nil {
+		c.Form().UpdateLayout()
+		if focused {
+			c.FocusTable()
+		}
+	}
 }
 
 // FullRestart restarts all the hosts, e.g. after another config is opened
@@ -266,14 +321,7 @@ func (c *LeftWidget) loadHosts() {
 		c.lvItems.SetCellText2(i, 0, hostDisplayName(host))
 	}
 
-	empty := len(hosts) == 0
-	if c.emptyHint.IsVisible() != empty {
-		c.lvItems.SetVisible(!empty)
-		c.emptyHint.SetVisible(empty)
-		if c.Form() != nil {
-			c.Form().UpdateLayout()
-		}
-	}
+	c.updateViews()
 	c.selectedHostsChanged()
 }
 
@@ -463,6 +511,9 @@ func (c *LeftWidget) onColumnClick(index int) {
 func (c *LeftWidget) updateColumnNames() {
 	for i, field := range c.columns {
 		name := hostColumns[field].name(&T().Columns)
+		if currentStyle.UpperHeaders {
+			name = strings.ToUpper(name)
+		}
 		if field == c.sortColumn {
 			if c.sortDesc {
 				name += " ▼"
@@ -697,6 +748,13 @@ func rowValue(has bool, d time.Duration) float64 {
 }
 
 func (c *LeftWidget) timerUpdate() {
+	if currentStyle.View != viewTable {
+		c.updateViewHosts()
+		return
+	}
+	if c.kpis.IsVisible() {
+		c.kpis.Update()
+	}
 	height := c.lvItems.RowHeight()
 	c.shareSlot = len(sharedHosts(config.Get().Hosts)) > 0
 	for row := 0; row < c.lvItems.RowCount(); row++ {
@@ -714,13 +772,40 @@ func (c *LeftWidget) timerUpdate() {
 			switch field {
 			case colName:
 				notify := hostConfig.Notify
-				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawNameCell(cnv, width, height, r, notify) })
+				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) {
+					c.drawNameCell(cnv, width, height, r, notify, c.lvItems.IsRowSelected(row))
+				})
 			case colTrend:
 				id := hostConfig.ID
-				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawTrendCell(cnv, width, height, id) })
+				c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawTrendCell(cnv, width, height, id, r) })
+			case colDetails:
+				if currentStyle.StatusKind == statusText {
+					c.lvItems.SetCellOnDraw(row, i, nil)
+				} else {
+					c.lvItems.SetCellOnDraw(row, i, func(cnv *ui.Canvas) { c.drawStatusCell(cnv, height, r) })
+				}
 			default:
 				c.lvItems.SetCellOnDraw(row, i, nil)
 			}
 		}
 	}
+}
+
+// updateViewHosts refreshes the hosts the tiles or the lanes draw, in the
+// order of the table, and repaints them; the cells of the hidden table are
+// left as they are
+func (c *LeftWidget) updateViewHosts() {
+	c.viewHosts = c.viewHosts[:0]
+	for row := 0; row < c.lvItems.RowCount(); row++ {
+		host, ok := c.lvItems.GetCellData2(row, 0).(*config.ConfigHost)
+		if !ok || host == nil {
+			continue
+		}
+		c.viewHosts = append(c.viewHosts, viewHost{host: host, row: hostRowOf(host)})
+	}
+	if c.kpis.IsVisible() {
+		c.kpis.Update()
+	}
+	c.tiles.Update()
+	c.lanes.Update()
 }

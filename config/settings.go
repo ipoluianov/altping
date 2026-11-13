@@ -19,7 +19,8 @@ type Settings struct {
 	// Language of the interface as a tag like "ru"; "" - the system's
 	Language string `json:",omitempty"`
 
-	// Color theme: "light"; "" - the dark one
+	// The style of the window by its ID (forms/styles.go): "light", "neon"...;
+	// "" - the classic dark one
 	Theme string `json:",omitempty"`
 }
 

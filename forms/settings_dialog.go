@@ -71,11 +71,13 @@ func NewSettingsDialog(settings config.Settings, onAccept func(config.Settings))
 
 	choices.AddWidget(1, 0, ui.NewLabel(T().Theme))
 	c.cmbTheme = ui.NewComboBox()
-	c.cmbTheme.AddItem(T().ThemeDark, themeDark)
-	c.cmbTheme.AddItem(T().ThemeLight, themeLight)
+	// The styles, also offered in the toolbar (stylepicker.go)
 	c.cmbTheme.SetSelectedIndex(0)
-	if settings.Theme == themeLight {
-		c.cmbTheme.SetSelectedIndex(1)
+	for i, s := range styles {
+		c.cmbTheme.AddItem(s.DisplayName(), s.ID)
+		if s.ID == styleByID(settings.Theme).ID {
+			c.cmbTheme.SetSelectedIndex(i)
+		}
 	}
 	choices.AddWidget(1, 1, c.cmbTheme)
 

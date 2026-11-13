@@ -3,7 +3,6 @@ package forms
 import (
 	"image"
 	"image/color"
-	"math"
 	"strings"
 	"time"
 
@@ -15,13 +14,6 @@ import (
 // The host table draws two cells itself: the name, after a dot in the color of
 // the host state, and the trend, a small chart of the last minutes. The other
 // cells are plain text; only the values that mean something are colored.
-
-var (
-	// colorMuted is for the text that is there but does not matter much: "-", "OK"
-	colorMuted = themeColors{ui.ColorFromHex("#7d7d7d"), ui.ColorFromHex("#8c8c8c")}
-	// colorTrend is the line of the trend chart
-	colorTrend = themeColors{ui.ColorFromHex("#4c9aff"), ui.ColorFromHex("#1d6fb5")}
-)
 
 const (
 	cellPaddingX  = 8
@@ -55,6 +47,9 @@ func (r hostRow) fieldColor(field int, text string) color.Color {
 	case colTime:
 		if r.slowMs > 0 && r.time > time.Duration(r.slowMs)*time.Millisecond {
 			return colorSlow.get()
+		}
+		if col, ok := heatColor(currentStyle, r); ok {
+			return col
 		}
 	case colAvg:
 		if r.isSlow() {
@@ -103,11 +98,15 @@ func statusDot(col color.RGBA) image.Image {
 	return img
 }
 
-// drawNameCell draws the dot of the host state, the bell of a host that beeps,
-// and the name
-func (c *LeftWidget) drawNameCell(cnv *ui.Canvas, width, height int, r hostRow, notify bool) {
+// drawNameCell draws the mark of the host state, the bell of a host that
+// beeps, and the name; a selected row gets a bar of the accent on its left
+func (c *LeftWidget) drawNameCell(cnv *ui.Canvas, width, height int, r hostRow, notify, selected bool) {
+	st := currentStyle
+	if selected && !st.classic() {
+		cnv.FillRect(0, 0, 3, height, st.Palette.Highlight)
+	}
 	x := cellPaddingX
-	cnv.DrawImage(x, (height-statusDotSize)/2, statusDot(colorToRGBA(r.color())))
+	drawStateMark(cnv, st, float64(x)+statusDotSize/2, float64(height)/2, statusDotSize, colorToRGBA(r.color()))
 	x += statusDotSize + statusDotGap
 	if notify && c.iconNotify != nil {
 		cnv.DrawImage(x, (height-notifyIconSize)/2, c.iconNotify)
@@ -130,6 +129,17 @@ func (c *LeftWidget) drawNameCell(cnv *ui.Canvas, width, height int, r hostRow, 
 		cnv.SetColor(colorMuted.get())
 	}
 	cnv.DrawText(x, 0, width-x-cellPaddingX, height, fitText(c.lvItems.FontFamily(), c.lvItems.FontSize(), r.name, width-x-cellPaddingX))
+}
+
+// drawStatusCell writes the state of the host on a plate, in the styles
+// that have them
+func (c *LeftWidget) drawStatusCell(cnv *ui.Canvas, height int, r hostRow) {
+	st := currentStyle
+	col := st.stateColor(r)
+	if !r.processed {
+		col = st.Muted
+	}
+	drawPill(cnv, st, cellPaddingX, height/2, stateText(r), col, c.lvItems.FontFamily(), c.lvItems.FontSize())
 }
 
 // fitText shortens the text with an ellipsis to fit the width
@@ -217,18 +227,26 @@ type trendPoint struct {
 // repainted much more often than the chart changes
 type trendCache struct {
 	at     time.Time
-	width  int
 	points []trendPoint
 }
 
-// trendPoints returns the trend chart of the host, computed at most once a trendCacheLife
-func (c *LeftWidget) trendPoints(hostID string, width int) []trendPoint {
-	if cached, ok := c.trends[hostID]; ok && cached.width == width && time.Since(cached.at) < trendCacheLife {
+// trendKey is a chart of a host with so many points: the table, the tiles
+// and the lanes draw charts of different widths
+type trendKey struct {
+	hostID string
+	n      int
+}
+
+// trendPoints returns n points of the trend chart of the host, computed
+// at most once a trendCacheLife
+func (c *LeftWidget) trendPoints(hostID string, n int) []trendPoint {
+	n = max(n, 1)
+	key := trendKey{hostID, n}
+	if cached, ok := c.trends[key]; ok && time.Since(cached.at) < trendCacheLife {
 		return cached.points
 	}
-	n := max(width/trendBarWidth, 1)
 	points := trendPointsOf(system.Get().GetHostHistory(hostID), time.Now(), n)
-	c.trends[hostID] = trendCache{at: time.Now(), width: width, points: points}
+	c.trends[key] = trendCache{at: time.Now(), points: points}
 	return points
 }
 
@@ -262,52 +280,22 @@ func trendPointsOf(history *system.HostHistory, now time.Time, n int) []trendPoi
 	return points
 }
 
-// drawTrendCell draws the replies of the last minutes as a line, scaled to
-// the slowest one; lost pings are ticks along the bottom
-func (c *LeftWidget) drawTrendCell(cnv *ui.Canvas, width, height int, hostID string) {
+// drawTrendCell draws the replies of the last minutes in the kind of the
+// style: a slow host in its state color, except in the classic themes
+func (c *LeftWidget) drawTrendCell(cnv *ui.Canvas, width, height int, hostID string, r hostRow) {
+	st := currentStyle
 	chartW := width - cellPaddingX*2
 	top, bottom := trendPaddingY, height-trendPaddingY
-	if chartW < trendBarWidth || bottom <= top {
+	step := trendStep(st)
+	if chartW < step || bottom <= top {
 		return
 	}
-	points := c.trendPoints(hostID, chartW)
-
-	cnv.FillRect(cellPaddingX, bottom, chartW, 1, withAlpha(colorMuted.get(), 90))
-
-	maxValue := 0.0
-	for _, p := range points {
-		if p.hasValue {
-			maxValue = math.Max(maxValue, p.value)
-		}
+	points := c.trendPoints(hostID, chartW/step)
+	col := st.Trend
+	if !st.classic() && r.isSlow() {
+		col = st.Slow
 	}
-	// Some room above the top, and no huge swings for a host that replies in no time
-	maxValue = math.Max(maxValue*1.15, 1)
-	yOf := func(v float64) float64 {
-		return float64(bottom) - v/maxValue*float64(bottom-top)
-	}
-
-	lineColor := colorTrend.get()
-	lostColor := colorFailed.get()
-	prevX, prevY, prevOK := 0.0, 0.0, false
-	for i, p := range points {
-		x := cellPaddingX + i*trendBarWidth
-		if p.lost {
-			cnv.FillRect(x, bottom-trendLostHeight+1, trendBarWidth, trendLostHeight, lostColor)
-		}
-		if !p.hasValue {
-			prevOK = false
-			continue
-		}
-		y := yOf(p.value)
-		cx := float64(x) + float64(trendBarWidth)/2
-		if prevOK {
-			cnv.DrawLineF(prevX, prevY, cx, y, lineColor)
-		} else if i+1 == len(points) || !points[i+1].hasValue {
-			// A reply between gaps or losses has no line to it: a short dash
-			cnv.FillRect(x, int(math.Round(y)), trendBarWidth, 1, lineColor)
-		}
-		prevX, prevY, prevOK = cx, y, true
-	}
+	drawTrend(cnv, st, cellPaddingX, top, chartW, bottom-top, points, step, col)
 }
 
 func withAlpha(col color.RGBA, a uint8) color.RGBA {

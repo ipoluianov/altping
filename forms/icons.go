@@ -16,11 +16,12 @@ import (
 //go:embed icons/*.png
 var iconsFS embed.FS
 
-// The icons are drawn in one light color for the dark theme; in the light
-// theme they are shown in this dark one
+// The icons are drawn in one light color for the dark theme; the classic
+// light theme shows them in this dark one, the other styles in their own
+// (Style.Icon)
 var iconColorLight = ui.ColorFromHex("#455a64")
 
-// loadIcon returns the icon in the colors of the current theme
+// loadIcon returns the icon in the colors of the current style
 func loadIcon(name string) image.Image {
 	data, err := iconsFS.ReadFile("icons/" + name + ".png")
 	if err != nil {
@@ -30,10 +31,10 @@ func loadIcon(name string) image.Image {
 	if err != nil {
 		return nil
 	}
-	if ui.IsDarkTheme {
+	if currentStyle.Icon.A == 0 {
 		return img
 	}
-	return tintIcon(img, iconColorLight)
+	return tintIcon(img, currentStyle.Icon)
 }
 
 // setIcon sets the icon with set now and again on every theme change

@@ -35,6 +35,8 @@ func OnGlobalKeyDown(key ui.Key, mods ui.KeyModifiers) bool {
 		}
 	case key == ui.KeyT && noMods:
 		lastCreatedTopWidget.onBtnTray()
+	case key == ui.KeyS && noMods:
+		lastCreatedTopWidget.onBtnStyle()
 	case key == ui.KeyU && noMods:
 		lastCreatedTopWidget.onBtnShareOpen()
 	case key == ui.KeyH && ctrlOnly:
